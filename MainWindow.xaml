@@ -454,8 +454,8 @@
                 Content="Add" 
                 HorizontalAlignment="Left" 
                 Height="25" 
-                Margin="10,0,0,10" 
-                VerticalAlignment="Bottom" 
+                Margin="10,0,0,0" 
+                VerticalAlignment="Center" 
                 Width="47" 
                 Background="#FF73ED73" 
                 FontSize="14" Cursor="Hand"/>
@@ -466,9 +466,9 @@
                 Click="DeleteTableButton_Click" 
                 Content="Delete" 
                 HorizontalAlignment="Left" 
-                Height="25" 
-                Margin="62,0,0,10" 
-                VerticalAlignment="Bottom" 
+                Height="26" 
+                Margin="75,0,0,0" 
+                VerticalAlignment="Center" 
                 Width="60" 
                 Background="#FFED7373" 
                 FontSize="14" Cursor="Hand"/>
@@ -523,7 +523,7 @@
                 <ImageBrush ImageSource="/background.jpg"/>
             </Grid.Background>
 
-       
+
             <Grid HorizontalAlignment="Center" VerticalAlignment="Center"  Width="300">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -535,7 +535,7 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                
+
                 <Rectangle Fill="#FFFFE5C5" Opacity="0.7" RadiusX="30" RadiusY="30"
                    Stroke="#FFDFA100" StrokeThickness="0"
                    Grid.RowSpan="7" Margin="0,-31,0,-35" />
