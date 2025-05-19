@@ -24,7 +24,6 @@
   <ItemGroup>
     <Resource Include="background.jpg" />
     <Resource Include="background_app.jpg" />
-    <Resource Include="tables.png" />
   </ItemGroup>
 
 </Project>
