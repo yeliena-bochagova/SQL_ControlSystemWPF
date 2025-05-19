@@ -257,6 +257,7 @@ namespace DataBase
 			Query.Visibility = Visibility.Visible;
 			BackToTableButton.Visibility = Visibility.Visible;
 			ResultGrid.Visibility = Visibility.Visible;
+
 		}
 
 		private void BackToTable_Button_Click(object sender, RoutedEventArgs e)
@@ -267,6 +268,7 @@ namespace DataBase
 			Query.Visibility = Visibility.Hidden;
 			BackToTableButton.Visibility = Visibility.Hidden;
 			ResultGrid.Visibility = Visibility.Hidden;
+
 		}
 
 		private async void ContentGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
