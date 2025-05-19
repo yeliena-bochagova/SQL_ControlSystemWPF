@@ -957,5 +957,21 @@ namespace DataBase
 				scaleTransform.BeginAnimation(ScaleTransform.ScaleYProperty, scaleAnim);
 			}
 		}
+
+		private void NormalizeButton_Click(object sender, RoutedEventArgs e)
+		{
+			var mainWindow = Application.Current.MainWindow;
+
+			if (mainWindow.WindowState == WindowState.Maximized)
+			{
+				mainWindow.WindowState = WindowState.Normal;
+			}
+			else
+			{
+				mainWindow.WindowState = WindowState.Maximized;
+			}
+			mainWindow.Height = 450;
+			mainWindow.Width = 800;
+		}
 	}
 }

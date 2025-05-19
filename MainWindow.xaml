@@ -285,7 +285,7 @@
             Content="" 
             HorizontalAlignment="Right" 
             Height="20" 
-            Margin="0,-22,35,0" 
+            Margin="0,-22,60,0" 
             VerticalAlignment="Top" 
             Width="20" 
             Background="#FFD29800" 
@@ -566,5 +566,19 @@
                 HorizontalAlignment="Center" Height="44" Width="140" Grid.Row="6" Cursor="Hand"/>
             </Grid>
         </Grid>
+        <Button Opacity="0.9" 
+            x:Name="NormalizeButton" 
+            Style="{DynamicResource ButtonStyle1}" 
+            Click="NormalizeButton_Click" 
+            Content="" 
+            HorizontalAlignment="Right" 
+            Height="20" 
+            Margin="0,-22,35,0" 
+            VerticalAlignment="Top" 
+            Width="20" 
+            Background="#FF9BFA35" 
+            BorderBrush="#FF442C00" 
+            FontSize="16" 
+            Cursor="Hand"/>
     </Grid>
 </Window>
