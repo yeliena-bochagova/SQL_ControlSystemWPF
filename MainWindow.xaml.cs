@@ -166,7 +166,7 @@ namespace DataBase
 
 		private async void ConnectToDB_Click(object sender, RoutedEventArgs e)
 		{
-			string DBName = DatabaseName.Text?.Trim();
+			string DBName = "ScientificSystem";
 			string HostName = ServerName.Text?.Trim();
 
 			if (string.IsNullOrWhiteSpace(DBName) || string.IsNullOrWhiteSpace(HostName))
@@ -238,6 +238,19 @@ namespace DataBase
 			CurrentTableName = selectedTable;
 			string query = $"SELECT * FROM [{selectedTable}]";
 			Query.Text = query;
+			
+
+			if (selectedTable == "Academic_degree")
+			{
+				AddTableButton.Content = $"Add academic degree";
+			}
+			else if (selectedTable == "Academic_title")
+			{
+				AddTableButton.Content = $"Add academic title";
+			}
+			else AddTableButton.Content = $"Add {selectedTable}";
+
+			DeleteTableButton.Content = $"Delete {selectedTable}";
 
 			try
 			{
@@ -472,14 +485,14 @@ namespace DataBase
 
 				MessageBox.Show($"Inserted 1 row with ID {newId}", "Insert Result");
 
-				// Оновлення DataGrid
+				
 				await ExecuteScriptAsync($"SELECT * FROM [{CurrentTableName}]");
 
-				// Оновлення DataRowView з новим ID
+		
 				if (row.Row.Table.Columns.Contains(primaryKeyColumn))
 				{
 					row.Row[primaryKeyColumn] = Convert.ToInt32(newId);
-					row.Row.AcceptChanges(); // Прийняти зміни, щоб строка більше не вважалася новою
+					row.Row.AcceptChanges(); 
 				}
 
 				System.Diagnostics.Debug.WriteLine("Grid refreshed and row updated with new ID");
@@ -498,10 +511,10 @@ namespace DataBase
 				using var conn = new SqlConnection(ConnStr);
 				conn.Open();
 				string query = $@"
-            SELECT IS_NULLABLE
-            FROM INFORMATION_SCHEMA.COLUMNS
-            WHERE TABLE_NAME = @TableName
-            AND COLUMN_NAME = @ColumnName";
+					SELECT IS_NULLABLE
+					FROM INFORMATION_SCHEMA.COLUMNS
+					WHERE TABLE_NAME = @TableName
+					AND COLUMN_NAME = @ColumnName";
 				using var cmd = new SqlCommand(query, conn);
 				cmd.Parameters.AddWithValue("@TableName", tableName);
 				cmd.Parameters.AddWithValue("@ColumnName", columnName);
@@ -970,6 +983,7 @@ namespace DataBase
 			{
 				mainWindow.WindowState = WindowState.Maximized;
 			}
+
 			mainWindow.Height = 450;
 			mainWindow.Width = 800;
 		}

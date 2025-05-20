@@ -387,7 +387,7 @@
                 Background="#FFED7373" 
                 Style="{DynamicResource ButtonStyleMenu}" 
                 x:Name="DisconnectButton" 
-                Content="Disconnect" 
+                Content="Quit" 
                 Width="100" 
                 Height="36" 
                 Margin="0,10,155,0" 
@@ -401,7 +401,7 @@
                 Style="{DynamicResource ButtonStyleMenu}" 
                 Name="Querry_Button" 
                 Click="Querry_Button_Click" 
-                Content="Query" 
+                Content="Advanced" 
                 HorizontalAlignment="Right" 
                 Height="35" 
                 Margin="0,9,10,0" 
@@ -443,23 +443,22 @@
                    RadiusY="30" 
                    Fill="Black" 
                    Opacity="0.5"
-                   VerticalAlignment="Center"/>
+                   VerticalAlignment="Center" Grid.ColumnSpan="2" Margin="0,0,544,0"/>
 
             <!-- Buttons for Table Operations -->
-            <Button Grid.Row="2" Grid.Column="0" 
+            <Button Grid.Row="2" 
                 Opacity="0.9" 
                 Style="{DynamicResource ButtonStyleMenu}" 
                 Name="AddTableButton" 
                 Click="AddTableButton_Click" 
                 Content="Add" 
                 HorizontalAlignment="Left" 
-                Height="25" 
-                Margin="10,0,0,0" 
+                Height="26" 
                 VerticalAlignment="Center" 
-                Width="47" 
+                Width="150" 
                 Background="#FF73ED73" 
-                FontSize="14" Cursor="Hand"/>
-            <Button Grid.Row="2" Grid.Column="0" 
+                FontSize="14" Cursor="Hand" Grid.ColumnSpan="2" Margin="5,0,0,0"/>
+            <Button Grid.Row="2" Grid.Column="1" 
                 Opacity="0.9" 
                 Style="{DynamicResource ButtonStyleMenu}" 
                 Name="DeleteTableButton" 
@@ -467,7 +466,7 @@
                 Content="Delete" 
                 HorizontalAlignment="Left" 
                 Height="26" 
-                Margin="75,0,0,0" 
+                Margin="10,0,0,0" 
                 VerticalAlignment="Center" 
                 Width="60" 
                 Background="#FFED7373" 
@@ -538,29 +537,20 @@
 
                 <Rectangle Fill="#FFFFE5C5" Opacity="0.7" RadiusX="30" RadiusY="30"
                    Stroke="#FFDFA100" StrokeThickness="0"
-                   Grid.RowSpan="7" Margin="0,-31,0,-35" />
+                   Grid.RowSpan="7" Margin="0,-50,0,-35" />
 
                 <TextBlock Text="Host Name" 
                    Foreground="Black" FontSize="24" FontWeight="Bold"
-                   HorizontalAlignment="Center" Grid.Row="0" Margin="0,-10,0,10"/>
+                   HorizontalAlignment="Center" Grid.Row="0" Margin="0,-26,0,26"/>
 
                 <TextBox Style="{DynamicResource TextBoxStyleMenu}" 
-                 HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                 HorizontalContentAlignment="Center" Text="localhost" VerticalContentAlignment="Center"
                  Name="ServerName" Height="50" Background="#FFFFF1E8"
                  HorizontalAlignment="Center" Width="200" Margin="0,22,0,10" Grid.RowSpan="2"/>
 
-                <TextBlock Text="Database Name"
-                   Foreground="Black" FontSize="24" FontWeight="Bold"
-                   HorizontalAlignment="Center" Grid.Row="3"/>
-
-                <TextBox Style="{DynamicResource TextBoxStyleMenu}" 
-                 HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                 Name="DatabaseName" Height="50" Background="#FFFFF1E8"
-                 HorizontalAlignment="Center" Width="200" Grid.Row="4"/>
-
                 <Button Style="{DynamicResource ButtonStyleMenu}" 
                 Name="ConnectToDBButton" Click="ConnectToDB_Click" 
-                Content="Connect To DB" 
+                Content="LogIn" 
                 Background="#FFFFB48A" FontFamily="Microsoft Sans Serif" 
                 FontSize="16" FontWeight="Bold"
                 HorizontalAlignment="Center" Height="44" Width="140" Grid.Row="6" Cursor="Hand"/>
