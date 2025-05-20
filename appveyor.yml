@@ -1,0 +1,15 @@
+version: 1.0.{build}
+image: Visual Studio 2022
+
+environment:
+  solution: DataBase.sln   
+  configuration: Release
+
+install:
+  - ps: dotnet restore $env:solution
+
+build_script:
+  - ps: dotnet build $env:solution --configuration $env:configuration
+
+test_script:
+  - ps: dotnet test $env:solution --configuration $env:configuration --collect:"XPlat Code Coverage"
