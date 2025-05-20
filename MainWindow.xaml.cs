@@ -238,19 +238,36 @@ namespace DataBase
 			CurrentTableName = selectedTable;
 			string query = $"SELECT * FROM [{selectedTable}]";
 			Query.Text = query;
-			
+
 
 			if (selectedTable == "Academic_degree")
 			{
-				AddTableButton.Content = $"Add academic degree";
+				AddColumnButton.Content = $"Add degree";
+				DeleteColumnButton.Content = $"Delete degree";
+				EditColumnButton.Content = $"Edit degree";
+				DeleteColumnButton.FontSize = 12;
+				AddColumnButton.FontSize = 12;
+				EditColumnButton.FontSize = 12;
 			}
 			else if (selectedTable == "Academic_title")
 			{
-				AddTableButton.Content = $"Add academic title";
+				AddColumnButton.Content = $"Add academic title";
+				EditColumnButton.Content = $"Edit academic title";
+				DeleteColumnButton.FontSize = 11;
+				AddColumnButton.FontSize = 11;
+				EditColumnButton.FontSize = 11;
 			}
-			else AddTableButton.Content = $"Add {selectedTable}";
+			else
+			{
+				AddColumnButton.Content = $"Add {selectedTable}";
+				DeleteColumnButton.Content = $"Delete {selectedTable}";
+				EditColumnButton.Content = $"Edit {selectedTable}";
+				DeleteColumnButton.FontSize = 12;
+				AddColumnButton.FontSize = 12;
+				EditColumnButton.FontSize = 12;
+			}
 
-			DeleteTableButton.Content = $"Delete {selectedTable}";
+			//DeleteTableButton.Content = $"Delete {selectedTable}";  //uncomment if you want to show the tables name on delete button
 
 			try
 			{

@@ -443,7 +443,7 @@
                    RadiusY="30" 
                    Fill="Black" 
                    Opacity="0.5"
-                   VerticalAlignment="Center" Grid.ColumnSpan="2" Margin="0,0,544,0"/>
+                   VerticalAlignment="Center" Grid.ColumnSpan="2" Margin="-60,0,632,0"/>
 
             <!-- Buttons for Table Operations -->
             <Button Grid.Row="2" 
@@ -455,10 +455,10 @@
                 HorizontalAlignment="Left" 
                 Height="26" 
                 VerticalAlignment="Center" 
-                Width="150" 
+                Width="70" 
                 Background="#FF73ED73" 
-                FontSize="14" Cursor="Hand" Grid.ColumnSpan="2" Margin="5,0,0,0"/>
-            <Button Grid.Row="2" Grid.Column="1" 
+                FontSize="14" Cursor="Hand" Margin="5,0,0,0"/>
+            <Button Grid.Row="2" 
                 Opacity="0.9" 
                 Style="{DynamicResource ButtonStyleMenu}" 
                 Name="DeleteTableButton" 
@@ -466,8 +466,8 @@
                 Content="Delete" 
                 HorizontalAlignment="Left" 
                 Height="26" 
-                Margin="10,0,0,0" 
-                VerticalAlignment="Center" 
+                Margin="90,10,0,0" 
+                VerticalAlignment="Top" 
                 Width="60" 
                 Background="#FFED7373" 
                 FontSize="14" Cursor="Hand"/>
@@ -478,7 +478,7 @@
                 Style="{DynamicResource ButtonStyleMenu}" 
                 Name="AddColumnButton" 
                 Click="AddColumnButton_Click" 
-                Content="Add Column" 
+                Content="Add" 
                 HorizontalAlignment="Right" 
                 Height="35" 
                 Margin="0,0,237,5" 
@@ -491,7 +491,7 @@
                 Style="{DynamicResource ButtonStyleMenu}" 
                 Name="EditColumnButton" 
                 Click="EditColumnButton_Click" 
-                Content="Edit Column" 
+                Content="Edit" 
                 HorizontalAlignment="Right" 
                 Height="35" 
                 Margin="0,0,123,5" 
@@ -504,7 +504,7 @@
                 Style="{DynamicResource ButtonStyleMenu}" 
                 Name="DeleteColumnButton" 
                 Click="DeleteColumnButton_Click" 
-                Content="Delete Column" 
+                Content="Delete" 
                 HorizontalAlignment="Right" 
                 Height="35" 
                 Margin="0,0,10,5" 
