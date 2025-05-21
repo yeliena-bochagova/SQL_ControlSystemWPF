@@ -7,14 +7,11 @@ environment:
 
 install:
   - ps: dotnet restore $env:solution
+  - ps: dotnet workload update
 
 build_script:
   - ps: dotnet build $env:solution --configuration $env:configuration
 
 test_script:
   - ps: dotnet test $env:solution --configuration $env:configuration --collect:"XPlat Code Coverage"
-  
-install:
-  - ps: dotnet workload update
-  - ps: dotnet restore $env:solution
 
