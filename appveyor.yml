@@ -13,3 +13,8 @@ build_script:
 
 test_script:
   - ps: dotnet test $env:solution --configuration $env:configuration --collect:"XPlat Code Coverage"
+  
+  install:
+  - ps: dotnet workload update
+  - ps: dotnet restore $env:solution
+
