@@ -14,6 +14,13 @@ using System.Data;
 using System.Text.RegularExpressions;
 using Microsoft.VisualBasic;
 using System.Windows.Media.Animation;
+using Microsoft.Win32;
+using System.IO;
+using OfficeOpenXml;
+using System.Reflection.Metadata;
+using System.Linq;
+using System.Diagnostics;
+
 
 namespace DataBase
 {
@@ -31,6 +38,10 @@ namespace DataBase
 			RunQueryButton.Visibility = Visibility.Hidden;
 			ResultGrid.Visibility = Visibility.Hidden;
 			Query.Visibility = Visibility.Hidden;
+
+			DocumentLList.Items.Add("Employement");
+			DocumentLList.Items.Add("Dismissial");
+			DocumentLList.Items.Add("Filters");
 		}
 
 		private void DisconnectButton_Click(object sender, RoutedEventArgs e)
@@ -128,7 +139,7 @@ namespace DataBase
 				else if (sql.StartsWith("UPDATE", StringComparison.OrdinalIgnoreCase))
 				{
 					var rows = await cmd.ExecuteNonQueryAsync();
-					MessageBox.Show($"Updated {rows} row(s)", "Update Result");
+					//MessageBox.Show($"Updated {rows} row(s)", "Update Result"); //IT WAS SO FCKNG ANNOYING DO NOT UNCOMMENT THIS SHIT
 				}
 				else if (sql.StartsWith("DELETE", StringComparison.OrdinalIgnoreCase))
 				{
@@ -239,7 +250,6 @@ namespace DataBase
 			string query = $"SELECT * FROM [{selectedTable}]";
 			Query.Text = query;
 
-
 			if (selectedTable == "Academic_degree")
 			{
 				AddColumnButton.Content = $"Add degree";
@@ -259,15 +269,17 @@ namespace DataBase
 			}
 			else
 			{
-				AddColumnButton.Content = $"Add {selectedTable}";
-				DeleteColumnButton.Content = $"Delete {selectedTable}";
-				EditColumnButton.Content = $"Edit {selectedTable}";
+				AddColumnButton.Content = $"Add in {selectedTable}";
+				DeleteColumnButton.Content = $"Delete in {selectedTable}";
+				EditColumnButton.Content = $"Edit in {selectedTable}";
 				DeleteColumnButton.FontSize = 12;
 				AddColumnButton.FontSize = 12;
 				EditColumnButton.FontSize = 12;
 			}
 
-			//DeleteTableButton.Content = $"Delete {selectedTable}";  //uncomment if you want to show the tables name on delete button
+			// Заповнення ComboBox списком стовпців таблиці
+			FilterColumnComboBox.ItemsSource = GetTableColumns(CurrentTableName);
+			FilterColumnComboBox.SelectedIndex = 0; // Вибираємо перший стовпець за замовчуванням
 
 			try
 			{
@@ -287,7 +299,6 @@ namespace DataBase
 			Query.Visibility = Visibility.Visible;
 			BackToTableButton.Visibility = Visibility.Visible;
 			ResultGrid.Visibility = Visibility.Visible;
-
 		}
 
 		private void BackToTable_Button_Click(object sender, RoutedEventArgs e)
@@ -298,12 +309,11 @@ namespace DataBase
 			Query.Visibility = Visibility.Hidden;
 			BackToTableButton.Visibility = Visibility.Hidden;
 			ResultGrid.Visibility = Visibility.Hidden;
-
 		}
 
 		private async void ContentGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
 		{
-			System.Diagnostics.Debug.WriteLine("ContentGrid_CellEditEnding triggered");
+			
 			if (e.EditAction == DataGridEditAction.Commit)
 			{
 				await UpdateDatabase(e);
@@ -312,7 +322,7 @@ namespace DataBase
 
 		private async void ResultGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
 		{
-			System.Diagnostics.Debug.WriteLine("ResultGrid_CellEditEnding triggered");
+			
 			if (e.EditAction == DataGridEditAction.Commit)
 			{
 				await UpdateDatabase(e);
@@ -321,45 +331,41 @@ namespace DataBase
 
 		private async Task UpdateDatabase(DataGridCellEditEndingEventArgs e)
 		{
-			System.Diagnostics.Debug.WriteLine("UpdateDatabase method started");
 			if (string.IsNullOrWhiteSpace(CurrentTableName))
 			{
 				MessageBox.Show("No table selected. Please select a table first.", "Error");
-				System.Diagnostics.Debug.WriteLine("No CurrentTableName");
 				return;
 			}
 
 			try
 			{
-				System.Diagnostics.Debug.WriteLine("Getting row and column data");
 				var row = (DataRowView)e.Row.Item;
 				string columnName = e.Column.Header.ToString();
 				var newValue = (e.EditingElement as TextBox)?.Text;
 
-				System.Diagnostics.Debug.WriteLine($"Column: {columnName}, New Value: {newValue}");
+				//System.Diagnostics.Debug.WriteLine($"Column: {columnName}, New Value: {newValue}");
 
 				StringBuilder rowData = new StringBuilder();
 				foreach (DataColumn col in row.Row.Table.Columns)
 				{
 					rowData.Append($"{col.ColumnName}: {row[col.ColumnName]}, ");
 				}
-				System.Diagnostics.Debug.WriteLine($"Row Data: {rowData.ToString().TrimEnd(',', ' ')}");
+				//System.Diagnostics.Debug.WriteLine($"Row Data: {rowData.ToString().TrimEnd(',', ' ')}");
 
 				string primaryKeyColumn = GetPrimaryKeyColumn(CurrentTableName);
 				if (string.IsNullOrWhiteSpace(primaryKeyColumn))
 				{
 					MessageBox.Show("Could not determine the primary key for the table.", "Error");
-					System.Diagnostics.Debug.WriteLine("No primary key found");
+					//System.Diagnostics.Debug.WriteLine("No primary key found");
 					return;
 				}
 
 				var primaryKeyValue = row[primaryKeyColumn];
-				System.Diagnostics.Debug.WriteLine($"Raw Primary Key Value: {primaryKeyValue}, Type: {primaryKeyValue?.GetType().Name ?? "null"}");
+				//System.Diagnostics.Debug.WriteLine($"Raw Primary Key Value: {primaryKeyValue}, Type: {primaryKeyValue?.GetType().Name ?? "null"}");
 
 				bool isNewRow = primaryKeyValue == DBNull.Value || primaryKeyValue == null || row.Row.RowState == DataRowState.Added;
 				if (isNewRow)
 				{
-					System.Diagnostics.Debug.WriteLine("Detected new row, calling InsertNewRow");
 					await InsertNewRow(row);
 					return;
 				}
@@ -367,11 +373,10 @@ namespace DataBase
 				if (!int.TryParse(primaryKeyValue.ToString(), out int pkValue))
 				{
 					MessageBox.Show("Invalid primary key value.", "Error");
-					System.Diagnostics.Debug.WriteLine($"Invalid primary key value: {primaryKeyValue}");
 					return;
 				}
 
-				System.Diagnostics.Debug.WriteLine($"Primary Key Column: {primaryKeyColumn}, Primary Key Value: {pkValue}");
+				//System.Diagnostics.Debug.WriteLine($"Primary Key Column: {primaryKeyColumn}, Primary Key Value: {pkValue}");
 
 				using var conn = new SqlConnection(ConnStr);
 				await conn.OpenAsync();
@@ -379,7 +384,7 @@ namespace DataBase
 				using var existsCmd = new SqlCommand(existsQuery, conn);
 				existsCmd.Parameters.AddWithValue("@PrimaryKeyValue", pkValue);
 				int rowCount = (int)await existsCmd.ExecuteScalarAsync();
-				System.Diagnostics.Debug.WriteLine($"Row count for ID {pkValue}: {rowCount}");
+				//System.Diagnostics.Debug.WriteLine($"Row count for ID {pkValue}: {rowCount}");
 				if (rowCount == 0)
 				{
 					MessageBox.Show($"Press enter again to insert a new row", "Warning");
@@ -397,7 +402,7 @@ namespace DataBase
 					else
 					{
 						MessageBox.Show($"Column {columnName} does not allow null values. Please enter a value.", "Error");
-						System.Diagnostics.Debug.WriteLine($"Column {columnName} does not allow nulls");
+						//System.Diagnostics.Debug.WriteLine($"Column {columnName} does not allow nulls");
 						return;
 					}
 				}
@@ -414,20 +419,20 @@ namespace DataBase
 				cmd.Parameters.AddWithValue("@PrimaryKeyValue", pkValue);
 
 				string debugQuery = $"UPDATE [{CurrentTableName}] SET [{columnName}] = '{formattedNewValue}' WHERE [{primaryKeyColumn}] = '{pkValue}'";
-				System.Diagnostics.Debug.WriteLine($"Executing query: {debugQuery}");
+				//System.Diagnostics.Debug.WriteLine($"Executing query: {debugQuery}");
 
 				int rowsAffected = await cmd.ExecuteNonQueryAsync();
-				System.Diagnostics.Debug.WriteLine($"Rows affected: {rowsAffected}");
+				//System.Diagnostics.Debug.WriteLine($"Rows affected: {rowsAffected}");
 
 				if (rowsAffected > 0)
 				{
-					MessageBox.Show($"Updated {rowsAffected} row(s)", "Update Result");
-					System.Diagnostics.Debug.WriteLine("Update successful");
+					//MessageBox.Show($"Updated {rowsAffected} row(s)", "Update Result"); //IT WAS SO FCKNG ANNOYING DO NOT UNCOMMENT THIS SHIT
+					//System.Diagnostics.Debug.WriteLine("Update successful");
 				}
 				else
 				{
 					MessageBox.Show("No rows were updated. Please check the data.", "Update Result");
-					System.Diagnostics.Debug.WriteLine("No rows updated");
+					//System.Diagnostics.Debug.WriteLine("No rows updated");
 					return;
 				}
 
@@ -435,15 +440,15 @@ namespace DataBase
 				using var verifyCmd = new SqlCommand(verifyQuery, conn);
 				verifyCmd.Parameters.AddWithValue("@PrimaryKeyValue", pkValue);
 				var updatedValue = await verifyCmd.ExecuteScalarAsync();
-				System.Diagnostics.Debug.WriteLine($"Updated value in database: {updatedValue}");
+				//System.Diagnostics.Debug.WriteLine($"Updated value in database: {updatedValue}");
 
 				await ExecuteScriptAsync($"SELECT * FROM [{CurrentTableName}]");
-				System.Diagnostics.Debug.WriteLine("Grid refreshed");
+				//System.Diagnostics.Debug.WriteLine("Grid refreshed");
 			}
 			catch (Exception ex)
 			{
 				MessageBox.Show($"Failed to update database: {ex.Message}\nStack Trace: {ex.StackTrace}", "Error");
-				System.Diagnostics.Debug.WriteLine($"Exception: {ex.Message}\nStack Trace: {ex.StackTrace}");
+				//System.Diagnostics.Debug.WriteLine($"Exception: {ex.Message}\nStack Trace: {ex.StackTrace}");
 			}
 		}
 
@@ -451,7 +456,7 @@ namespace DataBase
 		{
 			try
 			{
-				System.Diagnostics.Debug.WriteLine("InsertNewRow method started");
+				//System.Diagnostics.Debug.WriteLine("InsertNewRow method started");
 				string[] columns = GetTableColumns(CurrentTableName);
 				string primaryKeyColumn = GetPrimaryKeyColumn(CurrentTableName);
 				var insertColumns = columns.Where(c => c != primaryKeyColumn).ToList();
@@ -493,12 +498,12 @@ namespace DataBase
 						object formattedValue = FormatValueForColumn(value.ToString(), columnType);
 						cmd.Parameters.AddWithValue($"@p_{column}", formattedValue);
 					}
-					System.Diagnostics.Debug.WriteLine($"Parameter @p_{column} = {value}");
+					//System.Diagnostics.Debug.WriteLine($"Parameter @p_{column} = {value}");
 				}
 
-				System.Diagnostics.Debug.WriteLine($"Executing INSERT query: {insertQuery}");
+				//System.Diagnostics.Debug.WriteLine($"Executing INSERT query: {insertQuery}");
 				var newId = await cmd.ExecuteScalarAsync();
-				System.Diagnostics.Debug.WriteLine($"Inserted row with ID: {newId}");
+				//System.Diagnostics.Debug.WriteLine($"Inserted row with ID: {newId}");
 
 				MessageBox.Show($"Inserted 1 row with ID {newId}", "Insert Result");
 
@@ -512,12 +517,12 @@ namespace DataBase
 					row.Row.AcceptChanges(); 
 				}
 
-				System.Diagnostics.Debug.WriteLine("Grid refreshed and row updated with new ID");
+				//System.Diagnostics.Debug.WriteLine("Grid refreshed and row updated with new ID");
 			}
 			catch (Exception ex)
 			{
 				
-				System.Diagnostics.Debug.WriteLine($"Exception in InsertNewRow: {ex.Message}\nStack Trace: {ex.StackTrace}");
+				//System.Diagnostics.Debug.WriteLine($"Exception in InsertNewRow: {ex.Message}\nStack Trace: {ex.StackTrace}");
 			}
 		}
 
@@ -1000,9 +1005,398 @@ namespace DataBase
 			{
 				mainWindow.WindowState = WindowState.Maximized;
 			}
-
 			mainWindow.Height = 450;
-			mainWindow.Width = 800;
+			mainWindow.Width = 1200;
 		}
+
+		private async void FilterButton_Click(object sender, RoutedEventArgs e)
+		{
+			if (string.IsNullOrWhiteSpace(ConnStr))
+			{
+				MessageBox.Show("Please connect to a database first.", "Connection Error");
+				return;
+			}
+
+			if (string.IsNullOrWhiteSpace(CurrentTableName))
+			{
+				MessageBox.Show("Please select a table first.", "Error");
+				return;
+			}
+
+			string filterValue = FilterTextBox.Text.Trim();
+			if (string.IsNullOrWhiteSpace(filterValue) || filterValue == "Enter value to filter")
+			{
+				MessageBox.Show("Please enter a value to filter.", "Error");
+				return;
+			}
+
+			string selectedColumn = FilterColumnComboBox.SelectedItem?.ToString();
+			if (string.IsNullOrWhiteSpace(selectedColumn))
+			{
+				MessageBox.Show("Please select a column to filter by.", "Error");
+				return;
+			}
+
+			try
+			{
+				string filterQuery = $"SELECT * FROM [{CurrentTableName}] WHERE [{selectedColumn}] LIKE @FilterValue";
+				using var conn = new SqlConnection(ConnStr);
+				await conn.OpenAsync();
+				using var cmd = new SqlCommand(filterQuery, conn);
+				cmd.Parameters.AddWithValue("@FilterValue", $"%{filterValue}%");
+
+				using var reader = await cmd.ExecuteReaderAsync();
+				var table = new DataTable();
+				table.Load(reader);
+
+				ContentGrid.ItemsSource = null;
+				ResultGrid.ItemsSource = null;
+				ContentGrid.ItemsSource = table.DefaultView;
+				ResultGrid.ItemsSource = table.DefaultView;
+
+				ContentGrid.Items.Refresh();
+				ResultGrid.Items.Refresh();
+				ContentGrid.UpdateLayout();
+				ResultGrid.UpdateLayout();
+
+				MessageBox.Show($"Found {table.Rows.Count} matching record(s).", "Filter Result");
+			}
+			catch (Exception ex)
+			{
+				MessageBox.Show($"Failed to filter data: {ex.Message}", "Error");
+			}
+		}
+		private void FilterTextBox_GotFocus(object sender, RoutedEventArgs e)
+		{
+			if (FilterTextBox.Text == "Enter document name")
+			{
+				FilterTextBox.Text = string.Empty;
+				FilterTextBox.Foreground = Brushes.Black;
+			}
+		}
+
+		private void FilterTextBox_LostFocus(object sender, RoutedEventArgs e)
+		{
+			if (string.IsNullOrWhiteSpace(FilterTextBox.Text))
+			{
+				FilterTextBox.Text = "Enter document name";
+				FilterTextBox.Foreground = Brushes.Gray;
+			}
+		}
+
+		private void SaveButton_Click(object sender, RoutedEventArgs e)
+		{
+			if (ContentGrid.ItemsSource == null || ContentGrid.Items.Count == 0)
+			{
+				MessageBox.Show("No data to save.", "Error");
+				return;
+			}
+
+			// Діалог для вибору CSV-файлу
+			SaveFileDialog csvSaveFileDialog = new SaveFileDialog
+			{
+				Filter = "CSV files (*.csv)|*.csv|All files (*.*)|*.*",
+				Title = "Save Results As (CSV)",
+				FileName = $"{CurrentTableName}_report_{DateTime.Now:yyyyMMdd_HHmmss}.csv"
+			};
+
+			// Діалог для вибору Excel-файлу
+			SaveFileDialog xlsxSaveFileDialog = new SaveFileDialog
+			{
+				Filter = "Excel files (*.xlsx)|*.xlsx|All files (*.*)|*.*",
+				Title = "Save Results As (Excel)",
+				FileName = $"{CurrentTableName}_report_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx"
+			};
+
+			if (csvSaveFileDialog.ShowDialog() != true || xlsxSaveFileDialog.ShowDialog() != true)
+				return;
+
+			try
+			{
+				// Отримуємо дані з ContentGrid
+				var dataView = ContentGrid.ItemsSource as DataView;
+				if (dataView == null || dataView.Table == null)
+				{
+					MessageBox.Show("Failed to retrieve data to save.", "Error");
+					return;
+				}
+
+				DataTable dataTable = dataView.Table;
+
+				// Збереження у CSV
+				StringBuilder csvContent = new StringBuilder();
+				csvContent.AppendLine($"Report: Data Export from {CurrentTableName}");
+				csvContent.AppendLine($"Generated on: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+				string filterValue = FilterTextBox.Text.Trim();
+				string selectedColumn = FilterColumnComboBox.SelectedItem?.ToString();
+				if (!string.IsNullOrWhiteSpace(filterValue) && filterValue != "Enter value to filter" && !string.IsNullOrWhiteSpace(selectedColumn))
+				{
+					csvContent.AppendLine($"Filter Parameters: {selectedColumn} contains \"{filterValue}\"");
+				}
+				else
+				{
+					csvContent.AppendLine("Filter Parameters: None");
+				}
+				csvContent.AppendLine();
+
+				IEnumerable<string> columnNames = dataTable.Columns.Cast<DataColumn>().Select(column => $"\"{column.ColumnName}\"");
+				csvContent.AppendLine(string.Join(",", columnNames));
+				foreach (DataRow row in dataTable.Rows)
+				{
+					IEnumerable<string> fields = row.ItemArray.Select(field =>
+					{
+						string escapedField = field?.ToString() ?? "";
+						escapedField = $"\"{escapedField.Replace("\"", "\"\"")}\""; // Екранування лапок
+						return escapedField;
+					});
+					csvContent.AppendLine(string.Join(",", fields));
+				}
+				File.WriteAllText(csvSaveFileDialog.FileName, csvContent.ToString(), Encoding.UTF8);
+
+				// Збереження у Excel
+				ExcelPackage.LicenseContext = LicenseContext.NonCommercial; // Для безкоштовного використання
+				using (var package = new ExcelPackage())
+				{
+					var worksheet = package.Workbook.Worksheets.Add("Report");
+					// Додаємо заголовок звіту
+					worksheet.Cells[1, 1].Value = $"Report: Data Export from {CurrentTableName}";
+					worksheet.Cells[2, 1].Value = $"Generated on: {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
+					if (!string.IsNullOrWhiteSpace(filterValue) && filterValue != "Enter value to filter" && !string.IsNullOrWhiteSpace(selectedColumn))
+					{
+						worksheet.Cells[3, 1].Value = $"Filter Parameters: {selectedColumn} contains \"{filterValue}\"";
+					}
+					else
+					{
+						worksheet.Cells[3, 1].Value = "Filter Parameters: None";
+					}
+
+					// Додаємо заголовки стовпців
+					for (int col = 0; col < dataTable.Columns.Count; col++)
+					{
+						worksheet.Cells[5, col + 1].Value = dataTable.Columns[col].ColumnName;
+					}
+
+					// Додаємо дані
+					for (int row = 0; row < dataTable.Rows.Count; row++)
+					{
+						for (int col = 0; col < dataTable.Columns.Count; col++)
+						{
+							worksheet.Cells[row + 6, col + 1].Value = dataTable.Rows[row][col]?.ToString();
+						}
+					}
+
+					// Авто-ширина стовпців
+					worksheet.Cells.AutoFitColumns();
+
+					// Зберігаємо файл Excel
+					File.WriteAllBytes(xlsxSaveFileDialog.FileName, package.GetAsByteArray());
+				}
+
+				MessageBox.Show($"Report saved successfully to {csvSaveFileDialog.FileName} and {xlsxSaveFileDialog.FileName}", "Success");
+			}
+			catch (Exception ex)
+			{
+				MessageBox.Show($"Failed to save results: {ex.Message}", "Error");
+			}
+		}
+
+		private async void Document_List_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+		{
+			CurrentTableName = "Document";
+			string query = "";
+			string documentType = DocumentLList.SelectedItem.ToString();
+
+			switch (documentType)
+			{
+				case "Employement":
+					query = $"SELECT * FROM dbo.Document WHERE Document_type = 'Employement'";
+					Query.Text = query;
+					break;
+				case "Dismissial":
+					query = $"SELECT * FROM dbo.Document WHERE Document_type = 'Dismissial'";
+					Query.Text = query;
+					break;
+				case "Filters":
+					query = $"SELECT * FROM dbo.Document WHERE Document_type = 'Filters'";
+					Query.Text = query;
+					break;
+				default:
+					query = "";
+					MessageBox.Show("Unknown document type selected.", "Error");
+					return;
+			}
+
+			try
+			{
+				await ExecuteScriptAsync(query);
+			}
+			catch (Exception ex)
+			{
+				MessageBox.Show($"Failed to execute query: {ex.Message}", "Error");
+			}
+		}
+
+		private void OpenDocument(string docsFolder, string filename)
+		{
+			string fullPath = System.IO.Path.Combine(docsFolder, filename);
+
+
+			if (!File.Exists(fullPath))
+			{
+				MessageBox.Show($"File not found: {fullPath}");
+				return;
+			}
+
+			ProcessStartInfo startInfo = new ProcessStartInfo
+			{
+				FileName = fullPath,
+				UseShellExecute = true,
+				WindowStyle = ProcessWindowStyle.Normal
+			};
+
+			Process.Start(startInfo);
+		}
+
+		private void CellDoubleClick(object sender, MouseButtonEventArgs e)
+		{
+			if (CurrentTableName == "Document")
+			{
+				try
+				{
+					// Ensure the sender is a DataGrid
+					if (!(sender is DataGrid dataGrid))
+					{
+						MessageBox.Show("Invalid sender: not a DataGrid.");
+						return;
+					}
+
+					// Get the original source as a DependencyObject
+					var originalSource = e.OriginalSource as DependencyObject;
+					if (originalSource == null)
+					{
+						MessageBox.Show("Invalid source: not a DependencyObject.");
+						return;
+					}
+
+					// Try to find the DataGridCell
+					var cell = FindVisualParent<DataGridCell>(originalSource);
+					if (cell == null)
+					{
+						// Debug: Show what was clicked
+						string clickedType = originalSource.GetType().Name;
+
+
+						// Alternative: Try hit-testing to find the cell
+						cell = GetCellFromPoint(dataGrid, e.GetPosition(dataGrid));
+						if (cell == null)
+						{
+
+							return;
+						}
+					}
+
+					// Get the DataGridRow from the cell
+					var row = FindVisualParent<DataGridRow>(cell);
+					if (row == null)
+					{
+						MessageBox.Show("No row was found for the clicked cell.");
+						return;
+					}
+
+					// Get the data item associated with the row
+					var dataItem = row.Item;
+					if (dataItem == null || dataItem == CollectionView.NewItemPlaceholder)
+					{
+						MessageBox.Show("No valid data item associated with the row.");
+						return;
+					}
+
+					// Cast to DataRowView and access the column directly
+					if (!(dataItem is DataRowView dataRowView))
+					{
+						MessageBox.Show("Data item is not a DataRowView.");
+						return;
+					}
+
+					// Access the Documentid column by name
+					object idValue;
+					try
+					{
+						idValue = dataRowView["Document_id"];
+					}
+					catch (Exception ex)
+					{
+						MessageBox.Show($"Error accessing Documentid: {ex.Message}");
+						return;
+					}
+
+					//MessageBox.Show($"Clicked ID: {idValue?.ToString() ?? "null"}");
+
+
+					string docsFolder;
+					string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+
+					string documentType = DocumentLList.SelectedItem?.ToString();
+					if (string.IsNullOrEmpty(documentType))
+					{
+						MessageBox.Show("No document type selected.", "Error");
+						return;
+					}
+
+					string filename = $"{idValue}.txt";
+					//MessageBox.Show($"Opening document: {filename}");
+
+					switch (documentType)
+					{
+						case "Employement":
+							docsFolder = System.IO.Path.Combine(baseDir, "Docs", "Hired");
+							OpenDocument(docsFolder, filename);
+							return;
+						case "Dismissial":
+							docsFolder = System.IO.Path.Combine(baseDir, "Docs", "Fired");
+							OpenDocument(docsFolder, filename);
+							return;
+						case "Filters":
+							docsFolder = System.IO.Path.Combine(baseDir, "Docs", "Filters");
+							OpenDocument(docsFolder, filename);
+							return;
+						default:
+							MessageBox.Show("Unknown document type selected.", "Error");
+							return;
+					}
+
+				}
+				catch (Exception ex)
+				{
+					MessageBox.Show($"An error occurred: {ex.Message}");
+				}
+			}
+		}
+
+
+
+		// Helper method to find a visual parent of type T
+		private T FindVisualParent<T>(DependencyObject child) where T : DependencyObject
+		{
+			while (child != null && !(child is T))
+			{
+				child = VisualTreeHelper.GetParent(child);
+			}
+			return child as T;
+		}
+
+		// Helper method to find a DataGridCell using hit-testing
+		private DataGridCell GetCellFromPoint(DataGrid dataGrid, Point clickPosition)
+		{
+			// Perform hit-test to find the visual element at the click position
+			var hitTestResult = VisualTreeHelper.HitTest(dataGrid, clickPosition);
+			if (hitTestResult?.VisualHit == null)
+				return null;
+
+			// Traverse up to find the DataGridCell
+			return FindVisualParent<DataGridCell>(hitTestResult.VisualHit);
+		}
+
+
 	}
 }

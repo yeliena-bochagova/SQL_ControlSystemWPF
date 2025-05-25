@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:DataBase"
         xmlns:wpfAnimatedGif="http://wpfanimatedgif.codeplex.com"
         mc:Ignorable="d"
-        Title="MainWindow" Height="475" Width="800" WindowStyle="None"
+        Title="MainWindow" Height="475" Width="1200" WindowStyle="None"
         MinWidth="800" MinHeight="450"
         MouseDown="Window_MouseDown" ResizeMode="CanResize" Foreground="Black" Background="#FF3C3C3C">
     <Window.Resources>
@@ -261,6 +261,10 @@
         </Style>
     </Window.Resources>
     <Grid Margin="0,25,0,0">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="197*"/>
+            <RowDefinition Height="28*"/>
+        </Grid.RowDefinitions>
         <!-- Close and Minimize Buttons -->
         <Button PreviewMouseDown="Button_PreviewMouseDown" 
             PreviewMouseUp="Button_PreviewMouseUp" 
@@ -293,16 +297,17 @@
             FontSize="16" 
             Cursor="Hand"/>
 
+
+
         <!-- Main App Grid -->
-        <Grid Name="AppGrid">
+        <Grid Name="AppGrid" Grid.RowSpan="2">
             <Grid.Background>
                 <ImageBrush ImageSource="/background_app.jpg"/>
             </Grid.Background>
             <!-- Define Grid for AppGrid content -->
             <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="400"/>
                 <!-- For top elements (DBNameTextBlock, buttons) -->
-                <RowDefinition Height="*"/>
                 <!-- For ContentGrid and ResultGrid -->
                 <RowDefinition Height="Auto"/>
                 <!-- For bottom panel -->
@@ -315,209 +320,259 @@
             </Grid.ColumnDefinitions>
 
             <!-- TextBox for Query -->
-            <TextBox Grid.Row="1" Grid.Column="1" 
-                 Opacity="0.9" 
-                 x:Name="Query" 
-                 AcceptsReturn="True" 
-                 Margin="5,0,4,0" 
-                 VerticalAlignment="Top" Height="169"/>
+            <Rectangle Grid.Column="1" 
+         Height="400"
+         Fill="Black" 
+         Opacity="0.5"
+         VerticalAlignment="Center" Margin="818,0,0,0"/>
+
+            <!-- TextBox for Query -->
+            <TextBox Grid.Column="1" 
+          Opacity="0.9" 
+          x:Name="Query" 
+          AcceptsReturn="True" 
+          Margin="130,56,232,0" 
+          VerticalAlignment="Top" Height="169"/>
 
             <!-- DataGrid for Content -->
-            <DataGrid Grid.Row="1" Grid.Column="1" 
-                  CanUserAddRows="True" 
-                  CellEditEnding="ContentGrid_CellEditEnding" 
-                  IsReadOnly="False" 
-                  Opacity="0.9" 
-                  x:Name="ContentGrid" 
-                  Margin="5,0,4,10"/>
+            <DataGrid     
+               MouseDoubleClick="CellDoubleClick"
+               CanUserAddRows="True" 
+               CellEditEnding="ContentGrid_CellEditEnding" 
+               IsReadOnly="False" 
+               Opacity="0.9" 
+               x:Name="ContentGrid" 
+               Margin="130,56,232,10" Grid.Column="1"/>
+            
+             
 
             <!-- TextBlock for DB Name -->
             <TextBlock Grid.Row="0" Grid.Column="1" 
-                   Name="DBNameTextBlock" 
-                   HorizontalAlignment="Left" 
-                   Height="34" 
-                   TextWrapping="Wrap" 
-                   VerticalAlignment="Top" 
-                   Width="376" 
-                   Margin="5,18,0,0" 
-                   RenderTransformOrigin="0.5,0.5" 
-                   FontSize="24" 
-                   FontWeight="Bold" 
-                   Foreground="White">
+            x:Name="DBNameTextBlock" 
+            HorizontalAlignment="Left" 
+            Height="34" 
+            TextWrapping="Wrap" 
+            VerticalAlignment="Top" 
+            Width="321" 
+            Margin="126,18,0,0" 
+            RenderTransformOrigin="0.5,0.5" 
+            FontSize="24" 
+            FontWeight="Bold" 
+            Foreground="White">
                 <TextBlock.RenderTransform>
                     <TransformGroup>
                         <ScaleTransform/>
-                        <SkewTransform AngleX="-2.545"/>
+                        <SkewTransform AngleX="-2.168"/>
                         <RotateTransform/>
                         <TranslateTransform X="-0.356"/>
                     </TransformGroup>
-                </TextBlock.RenderTransform>
-            <Run Language="pl-pl" Text="DBName"/>
-            </TextBlock>
+                </TextBlock.RenderTransform><Run Language="pl-pl" Text="DBName"/></TextBlock>
 
             <!-- Result Grid -->
-            <DataGrid Grid.Row="1" Grid.Column="1" 
-                  CanUserAddRows="True" 
-                  CellEditEnding="ResultGrid_CellEditEnding" 
-                  IsReadOnly="False" 
-                  Opacity="0.9" 
-                  x:Name="ResultGrid" 
-                  Margin="5,174,4,10"/>
+            <DataGrid Grid.Column="1" 
+            
+                       MouseDoubleClick="CellDoubleClick"
+           CanUserAddRows="True" 
+           CellEditEnding="ResultGrid_CellEditEnding" 
+           IsReadOnly="False" 
+           Opacity="0.9" 
+           x:Name="ResultGrid" 
+           Margin="130,225,232,10" RenderTransformOrigin="0.5,0.5">
+                <DataGrid.RenderTransform>
+                    <TransformGroup>
+                        <ScaleTransform/>
+                        <SkewTransform/>
+                        <RotateTransform/>
+                        <TranslateTransform/>
+                    </TransformGroup>
+                </DataGrid.RenderTransform>
+            </DataGrid>
 
             <!-- Run Query Button -->
             <Button Grid.Row="0" Grid.Column="1" 
-                Opacity="0.9" 
-                Name="RunQueryButton" 
-                Style="{DynamicResource ButtonStyle1}" 
-                Click="Connect_Click" 
-                Content=" ▷" 
-                HorizontalAlignment="Right" 
-                Height="35" 
-                Margin="0,10,115,0" 
-                VerticalAlignment="Top" 
-                Width="35" 
-                Background="#FF19D200" 
-                BorderBrush="#FF00440B" 
-                FontSize="16" Cursor="Hand"/>
+         Opacity="0.9" 
+         x:Name="RunQueryButton" 
+         Style="{DynamicResource ButtonStyle1}" 
+         Click="Connect_Click" 
+         Content=" ▷" 
+         HorizontalAlignment="Right" 
+         Height="35" 
+         Margin="0,9,115,0" 
+         VerticalAlignment="Top" 
+         Width="35" 
+         Background="#FF19D200" 
+         BorderBrush="#FF00440B" 
+         FontSize="16" Cursor="Hand"/>
 
-            <!-- Disconnect Button -->
-            <Button Grid.Row="0" Grid.Column="1" 
-                FontSize="18" 
-                Opacity="0.9" 
-                Background="#FFED7373" 
-                Style="{DynamicResource ButtonStyleMenu}" 
-                x:Name="DisconnectButton" 
-                Content="Quit" 
-                Width="100" 
-                Height="36" 
-                Margin="0,10,155,0" 
-                HorizontalAlignment="Right" 
-                VerticalAlignment="Top" 
-                Click="DisconnectButton_Click" Cursor="Hand"/>
+
 
             <!-- Query and Table Buttons -->
             <Button Grid.Row="0" Grid.Column="1" 
-                Opacity="0.9" 
-                Style="{DynamicResource ButtonStyleMenu}" 
-                Name="Querry_Button" 
-                Click="Querry_Button_Click" 
-                Content="Advanced" 
-                HorizontalAlignment="Right" 
-                Height="35" 
-                Margin="0,9,10,0" 
-                VerticalAlignment="Top" 
-                Width="100" 
-                Background="#FFED7373" 
-                FontSize="20"/>
+         Opacity="0.9" 
+         Style="{DynamicResource ButtonStyleMenu}" 
+         x:Name="Querry_Button" 
+         Click="Querry_Button_Click" 
+         Content="Advanced" 
+         HorizontalAlignment="Right" 
+         Height="35" 
+         Margin="0,9,10,0" 
+         VerticalAlignment="Top" 
+         Width="100" 
+         Background="#FFED7373" 
+         FontSize="20"/>
             <Button Grid.Row="0" Grid.Column="1" 
-                Opacity="0.9" 
-                Style="{DynamicResource ButtonStyleMenu}" 
-                x:Name="BackToTableButton" 
-                Click="BackToTable_Button_Click" 
-                Content="Table" 
-                HorizontalAlignment="Right" 
-                Height="35" 
-                Margin="0,9,10,0" 
-                VerticalAlignment="Top" 
-                Width="100" 
-                Background="#FFED7373" 
-                FontSize="20" Cursor="Hand"/>
+         Opacity="0.9" 
+         Style="{DynamicResource ButtonStyleMenu}" 
+         x:Name="BackToTableButton" 
+         Click="BackToTable_Button_Click" 
+         Content="Table" 
+         HorizontalAlignment="Right" 
+         Height="35" 
+         Margin="0,9,10,0" 
+         VerticalAlignment="Top" 
+         Width="100" 
+         Background="#FFED7373" 
+         FontSize="20" Cursor="Hand"/>
+
+            <!-- Disconnect Button -->
 
             <!-- ListBox for Tables -->
-            <ListBox Grid.Row="0" Grid.RowSpan="2" Grid.Column="0" 
-                 Opacity="0.9" 
-                 Name="Tables_List" 
-                 Margin="10,26,10,10" 
-                 d:ItemsSource="{d:SampleData ItemCount=5}" 
-                 MouseDoubleClick="Tables_List_MouseDoubleClick"/>
+            <ListBox Grid.Row="0" Grid.Column="0" 
+              Opacity="0.9" 
+              x:Name="Tables_List" 
+              Margin="10,26,10,10" 
+              d:ItemsSource="{d:SampleData ItemCount=5}" 
+              MouseDoubleClick="Tables_List_MouseDoubleClick"/>
 
             <!-- Rectangles -->
-            <Rectangle Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" 
-                   Height="50"
-                   Fill="Black" 
-                   Opacity="0.5"
-                   VerticalAlignment="Center"/>
-            <Rectangle Grid.Row="2" Grid.Column="0" 
-                   Height="50"
-                   RadiusX="30" 
-                   RadiusY="30" 
-                   Fill="Black" 
-                   Opacity="0.5"
-                   VerticalAlignment="Center" Grid.ColumnSpan="2" Margin="-60,0,632,0"/>
+            <Rectangle Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" 
+            Height="50"
+            Fill="Black" 
+            Opacity="0.5"
+            VerticalAlignment="Center"/>
+            <Rectangle Grid.Column="0" 
+            Height="50"
+            RadiusX="30" 
+            RadiusY="30" 
+            Fill="Black" 
+            Opacity="0.5"
+            VerticalAlignment="Top" Grid.ColumnSpan="2" Margin="-60,398,990,0" Grid.RowSpan="2"/>
 
             <!-- Buttons for Table Operations -->
-            <Button Grid.Row="2" 
-                Opacity="0.9" 
-                Style="{DynamicResource ButtonStyleMenu}" 
-                Name="AddTableButton" 
-                Click="AddTableButton_Click" 
-                Content="Add" 
-                HorizontalAlignment="Left" 
-                Height="26" 
-                VerticalAlignment="Center" 
-                Width="70" 
-                Background="#FF73ED73" 
-                FontSize="14" Cursor="Hand" Margin="5,0,0,0"/>
-            <Button Grid.Row="2" 
-                Opacity="0.9" 
-                Style="{DynamicResource ButtonStyleMenu}" 
-                Name="DeleteTableButton" 
-                Click="DeleteTableButton_Click" 
-                Content="Delete" 
-                HorizontalAlignment="Left" 
-                Height="26" 
-                Margin="90,10,0,0" 
-                VerticalAlignment="Top" 
-                Width="60" 
-                Background="#FFED7373" 
-                FontSize="14" Cursor="Hand"/>
+            <Button Grid.Row="1" 
+         Opacity="0.9" 
+         Style="{DynamicResource ButtonStyleMenu}" 
+         x:Name="AddTableButton" 
+         Click="AddTableButton_Click" 
+         Content="Add" 
+         HorizontalAlignment="Left" 
+         Height="30" 
+         VerticalAlignment="Center" 
+         Width="70" 
+         Background="#FF73ED73" 
+         FontSize="14" Cursor="Hand" Margin="5,0,0,0"/>
+            <Button Grid.Row="1" 
+         Opacity="0.9" 
+         Style="{DynamicResource ButtonStyleMenu}" 
+         x:Name="DeleteTableButton" 
+         Click="DeleteTableButton_Click" 
+         Content="Delete" 
+         HorizontalAlignment="Left" 
+         Height="30" 
+         Margin="87,0,0,0" 
+         VerticalAlignment="Center" 
+         Width="70" 
+         Background="#FFED7373" 
+         FontSize="14" Cursor="Hand" Grid.ColumnSpan="2"/>
 
             <!-- Column Operation Buttons -->
-            <Button Grid.Row="2" Grid.Column="1" 
+            <Button Grid.Row="0" Grid.Column="1" 
+         Opacity="0.9" 
+         Style="{DynamicResource ButtonStyleMenu}" 
+         x:Name="EditColumnButton" 
+         Click="EditColumnButton_Click" 
+         Content="Edit" 
+         HorizontalAlignment="Right" 
+         Height="35" 
+         Margin="0,0,9,282" 
+         VerticalAlignment="Bottom" 
+         Width="100" 
+         Background="#FF73ED73" 
+         FontSize="14" Cursor="Hand"/>
+            <Button Grid.Row="0" Grid.Column="1" 
+         Opacity="0.9" 
+         Style="{DynamicResource ButtonStyleMenu}" 
+         x:Name="DeleteColumnButton" 
+         Click="DeleteColumnButton_Click" 
+         Content="Delete" 
+         HorizontalAlignment="Right" 
+         Height="35" 
+         Margin="0,0,56,242" 
+         VerticalAlignment="Bottom" 
+         Width="120" 
+         Background="#FFED7373" 
+         FontSize="14" Cursor="Hand"/>
+
+            <ComboBox x:Name="FilterColumnComboBox" ToolTip="Select column to filter by" Grid.Column="1" Margin="824,166,9,200"   />
+            <TextBox x:Name="FilterTextBox" Text="Enter value to filter" Foreground="Gray" GotFocus="FilterTextBox_GotFocus" LostFocus="FilterTextBox_LostFocus" Grid.Column="1" Margin="824,205,9,161" RenderTransformOrigin="0.553,0.412"/>
+            <Button Opacity="0.9" Background="#FF73ED73"  Style="{DynamicResource ButtonStyleMenu}" x:Name="FilterButton" Content="Filter" Click="FilterButton_Click" RenderTransformOrigin="0.821,-0.19" Grid.Column="1" Margin="824,251,126,115"/>
+            <Button  Style="{DynamicResource ButtonStyleMenu}" x:Name="SaveButton" Content="Save" Click="SaveButton_Click" ToolTip="Save results to a CSV file" Background="#FFD1E53D" Grid.Column="1" Margin="944,251,6,115"/>
+            <Button Grid.Column="1" 
+             Opacity="0.9" 
+             Style="{DynamicResource ButtonStyleMenu}" 
+             x:Name="AddColumnButton" 
+             Click="AddColumnButton_Click" 
+             Content="Add" 
+             HorizontalAlignment="Right" 
+             Height="35" 
+             Margin="0,0,115,282" 
+             VerticalAlignment="Bottom" 
+             Width="100" 
+             Background="#FF73ED73" 
+             FontSize="14" Cursor="Hand"/>
+            <ListBox Grid.Row="0" 
                 Opacity="0.9" 
-                Style="{DynamicResource ButtonStyleMenu}" 
-                Name="AddColumnButton" 
-                Click="AddColumnButton_Click" 
-                Content="Add" 
-                HorizontalAlignment="Right" 
-                Height="35" 
-                Margin="0,0,237,5" 
-                VerticalAlignment="Bottom" 
-                Width="100" 
-                Background="#FF73ED73" 
-                FontSize="14" Cursor="Hand"/>
-            <Button Grid.Row="2" Grid.Column="1" 
-                Opacity="0.9" 
-                Style="{DynamicResource ButtonStyleMenu}" 
-                Name="EditColumnButton" 
-                Click="EditColumnButton_Click" 
-                Content="Edit" 
-                HorizontalAlignment="Right" 
-                Height="35" 
-                Margin="0,0,123,5" 
-                VerticalAlignment="Bottom" 
-                Width="100" 
-                Background="#FF73ED73" 
-                FontSize="14" Cursor="Hand"/>
-            <Button Grid.Row="2" Grid.Column="1" 
-                Opacity="0.9" 
-                Style="{DynamicResource ButtonStyleMenu}" 
-                Name="DeleteColumnButton" 
-                Click="DeleteColumnButton_Click" 
-                Content="Delete" 
-                HorizontalAlignment="Right" 
-                Height="35" 
-                Margin="0,0,10,5" 
-                VerticalAlignment="Bottom" 
-                Width="100" 
-                Background="#FFED7373" 
-                FontSize="14" Cursor="Hand"/>
+                x:Name="DocumentLList" 
+                MouseDoubleClick="Document_List_MouseDoubleClick"
+                Margin="145,56,925,10" 
+                d:ItemsSource="{d:SampleData ItemCount=5}" 
+                Grid.ColumnSpan="2"/>
+            <Button Grid.Column="1" 
+ FontSize="18" 
+ Opacity="0.9" 
+ Background="#FFED7373" 
+ Style="{DynamicResource ButtonStyleMenu}" 
+ x:Name="DisconnectButton" 
+ Content="Quit" 
+ Width="100" 
+ Height="36" 
+
+ HorizontalAlignment="Left" 
+ VerticalAlignment="Center" 
+ Click="DisconnectButton_Click" Cursor="Hand" Margin="944,0,0,0" Grid.Row="1"/>
+            <TextBlock Grid.Row="0" 
+                x:Name="DBNameTextBlock_Copy" 
+                HorizontalAlignment="Left" 
+                Height="34" 
+                TextWrapping="Wrap" 
+                VerticalAlignment="Top" 
+                Width="105" 
+                Margin="6,20,0,0" 
+                RenderTransformOrigin="0.5,0.5" 
+                FontSize="18" 
+                FontWeight="Bold" 
+                Foreground="White" Grid.Column="1">
+                <TextBlock.RenderTransform>
+                    <TransformGroup>
+                        <ScaleTransform/>
+                        <SkewTransform AngleX="-2.168"/>
+                        <RotateTransform/>
+                        <TranslateTransform X="-0.356"/>
+                    </TransformGroup>
+                </TextBlock.RenderTransform><Run Language="pl-pl" Text="Documents"/></TextBlock>
         </Grid>
 
-
-
-
-        <Grid Name="MenuConnectGrid" d:IsHidden="True">
+        <Grid Name="MenuConnectGrid" d:IsHidden="True" Grid.RowSpan="2">
             <Grid.Background>
                 <ImageBrush ImageSource="/background.jpg"/>
             </Grid.Background>
@@ -536,26 +591,28 @@
 
 
                 <Rectangle Fill="#FFFFE5C5" Opacity="0.7" RadiusX="30" RadiusY="30"
-                   Stroke="#FFDFA100" StrokeThickness="0"
-                   Grid.RowSpan="7" Margin="0,-50,0,-35" />
+             Stroke="#FFDFA100" StrokeThickness="0"
+             Grid.RowSpan="7" Margin="0,-50,0,-35" />
 
                 <TextBlock Text="Host Name" 
-                   Foreground="Black" FontSize="24" FontWeight="Bold"
-                   HorizontalAlignment="Center" Grid.Row="0" Margin="0,-26,0,26"/>
+             Foreground="Black" FontSize="24" FontWeight="Bold"
+             HorizontalAlignment="Center" Grid.Row="0" Margin="0,-26,0,26"/>
 
                 <TextBox Style="{DynamicResource TextBoxStyleMenu}" 
-                 HorizontalContentAlignment="Center" Text="localhost" VerticalContentAlignment="Center"
-                 Name="ServerName" Height="50" Background="#FFFFF1E8"
-                 HorizontalAlignment="Center" Width="200" Margin="0,22,0,10" Grid.RowSpan="2"/>
+           HorizontalContentAlignment="Center" Text="localhost" VerticalContentAlignment="Center"
+           Name="ServerName" Height="50" Background="#FFFFF1E8"
+           HorizontalAlignment="Center" Width="200" Margin="0,22,0,10" Grid.RowSpan="2"/>
 
                 <Button Style="{DynamicResource ButtonStyleMenu}" 
-                Name="ConnectToDBButton" Click="ConnectToDB_Click" 
-                Content="LogIn" 
-                Background="#FFFFB48A" FontFamily="Microsoft Sans Serif" 
-                FontSize="16" FontWeight="Bold"
-                HorizontalAlignment="Center" Height="44" Width="140" Grid.Row="6" Cursor="Hand"/>
+          Name="ConnectToDBButton" Click="ConnectToDB_Click" 
+          Content="LogIn" 
+          Background="#FFFFB48A" FontFamily="Microsoft Sans Serif" 
+          FontSize="16" FontWeight="Bold"
+          HorizontalAlignment="Center" Height="44" Width="140" Grid.Row="6" Cursor="Hand"/>
             </Grid>
         </Grid>
+
+
         <Button Opacity="0.9" 
             x:Name="NormalizeButton" 
             Style="{DynamicResource ButtonStyle1}" 
