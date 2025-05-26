@@ -92,7 +92,7 @@ namespace DataBase
 			{
 				MessageBox.Show(ex.Message, "Error");
 			}
-			
+
 		}
 
 		private async Task ExecuteScriptAsync(string sqlScript)
@@ -313,7 +313,7 @@ namespace DataBase
 
 		private async void ContentGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
 		{
-			
+
 			if (e.EditAction == DataGridEditAction.Commit)
 			{
 				await UpdateDatabase(e);
@@ -322,7 +322,7 @@ namespace DataBase
 
 		private async void ResultGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
 		{
-			
+
 			if (e.EditAction == DataGridEditAction.Commit)
 			{
 				await UpdateDatabase(e);
@@ -507,21 +507,21 @@ namespace DataBase
 
 				MessageBox.Show($"Inserted 1 row with ID {newId}", "Insert Result");
 
-				
+
 				await ExecuteScriptAsync($"SELECT * FROM [{CurrentTableName}]");
 
-		
+
 				if (row.Row.Table.Columns.Contains(primaryKeyColumn))
 				{
 					row.Row[primaryKeyColumn] = Convert.ToInt32(newId);
-					row.Row.AcceptChanges(); 
+					row.Row.AcceptChanges();
 				}
 
 				//System.Diagnostics.Debug.WriteLine("Grid refreshed and row updated with new ID");
 			}
 			catch (Exception ex)
 			{
-				
+
 				//System.Diagnostics.Debug.WriteLine($"Exception in InsertNewRow: {ex.Message}\nStack Trace: {ex.StackTrace}");
 			}
 		}
@@ -1320,7 +1320,7 @@ namespace DataBase
 					}
 
 					string filename = $"{personId}.txt";
-				
+
 					//MessageBox.Show($"Opening document: {filename}");
 
 					switch (documentType)
@@ -1724,9 +1724,188 @@ namespace DataBase
 		}
 		#endregion
 
-		private void DismissButton_Click(object sender, RoutedEventArgs e)
+		private async void DismissButton_Click(object sender, RoutedEventArgs e)
 		{
+			if (string.IsNullOrWhiteSpace(ConnStr))
+			{
+				MessageBox.Show("Please connect to a database first.", "Connection Error");
+				return;
+			}
 
+			try
+			{
+				string employeeIdInput = Interaction.InputBox("Enter Employee ID to dismiss:", "Dismiss Employee", "");
+				if (!int.TryParse(employeeIdInput, out int employeeId) || employeeId <= 0)
+				{
+					MessageBox.Show("Invalid Employee ID. Please enter a valid number.", "Error");
+					return;
+				}
+
+				using var conn = new SqlConnection(ConnStr);
+				await conn.OpenAsync();
+
+				string personQuery = @"
+            SELECT p.First_name, p.Last_name, p.Adress, e.Hire_date, e.Person_id 
+            FROM Employee e 
+            JOIN Person p ON e.Person_id = p.Person_id 
+            WHERE e.Employee_id = @EmployeeId";
+
+				using var personCmd = new SqlCommand(personQuery, conn);
+				personCmd.Parameters.AddWithValue("@EmployeeId", employeeId);
+
+				using var reader = await personCmd.ExecuteReaderAsync();
+				if (!reader.HasRows)
+				{
+					MessageBox.Show("No employee found with the provided ID.", "Error");
+					return;
+				}
+
+				string firstName = "", lastName = "", employeeAddress = "";
+				DateTime hireDate = DateTime.Now;
+				int personId = 0;
+
+				if (await reader.ReadAsync())
+				{
+					firstName = reader.GetString(0);
+					lastName = reader.GetString(1);
+					employeeAddress = reader.GetString(2);
+					hireDate = reader.GetDateTime(3);
+					personId = reader.GetInt32(4);
+				}
+				reader.Close();
+
+				string insertDocumentQuery = @"
+            INSERT INTO dbo.Document (Document_type, Employee_id, Document_date, Description)
+            OUTPUT INSERTED.Document_id
+            VALUES (@DocumentType, @EmployeeId, @DocumentDate, @Description)";
+
+				using var docCmd = new SqlCommand(insertDocumentQuery, conn);
+				docCmd.Parameters.AddWithValue("@DocumentType", "Dismissial");
+				docCmd.Parameters.AddWithValue("@EmployeeId", employeeId);
+				docCmd.Parameters.AddWithValue("@DocumentDate", DateTime.Now);
+				docCmd.Parameters.AddWithValue("@Description", "generated automatically");
+
+				int documentId = (int)await docCmd.ExecuteScalarAsync();
+
+				string employerName = "ScientificSystem Ltd";
+				string employerAddress = "123 Business Park, Scotland";
+				string registrationNumber = "SC123456";
+				string docsFolder = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Docs", "Fired");
+				string filename = $"{employeeId}.txt";
+
+				try
+				{
+					if (!Directory.Exists(docsFolder))
+					{
+						Directory.CreateDirectory(docsFolder);
+					}
+
+					string dismissalContent = GenerateDismissalLetter(
+						employerName,
+						$"{firstName} {lastName}",
+						employerAddress,
+						registrationNumber,
+						hireDate,
+						DateTime.Now,
+						employeeAddress
+					);
+
+					File.WriteAllText(System.IO.Path.Combine(docsFolder, filename), dismissalContent, Encoding.UTF8);
+
+					using var transaction = conn.BeginTransaction();
+					try
+					{
+						string deleteEmployeeQuery = "DELETE FROM Employee WHERE Employee_id = @EmployeeId";
+						using var deleteEmpCmd = new SqlCommand(deleteEmployeeQuery, conn, transaction);
+						deleteEmpCmd.Parameters.AddWithValue("@EmployeeId", employeeId);
+						int empRows = await deleteEmpCmd.ExecuteNonQueryAsync();
+
+						string deletePersonQuery = "DELETE FROM Person WHERE Person_id = @PersonId";
+						using var deletePersonCmd = new SqlCommand(deletePersonQuery, conn, transaction);
+						deletePersonCmd.Parameters.AddWithValue("@PersonId", personId);
+						int personRows = await deletePersonCmd.ExecuteNonQueryAsync();
+
+						transaction.Commit();
+						MessageBox.Show(
+							$"Employee ID {employeeId} dismissed successfully. {empRows} employee and {personRows} person record(s) deleted. Dismissal letter saved to {filename}.",
+							"Success"
+						);
+					}
+					catch (Exception ex)
+					{
+						transaction.Rollback();
+						MessageBox.Show($"Failed to delete records: {ex.Message}", "Error");
+						return;
+					}
+
+					if (CurrentTableName == "Person")
+					{
+						await ExecuteScriptAsync("SELECT * FROM Person");
+					}
+					else if (CurrentTableName == "Employee")
+					{
+						await ExecuteScriptAsync("SELECT * FROM Employee");
+					}
+
+					OpenDocument(docsFolder, filename);
+				}
+				catch (Exception ex)
+				{
+					MessageBox.Show($"Failed to save dismissal letter: {ex.Message}", "Error");
+					return;
+				}
+			}
+			catch (Exception ex)
+			{
+				MessageBox.Show($"Failed to process dismissal: {ex.Message}", "Error");
+			}
+		}
+
+		private string GenerateDismissalLetter(
+			string employerName,
+			string employeeName,
+			string employerAddress,
+			string registrationNumber,
+			DateTime hireDate,
+			DateTime dismissalDate,
+			string employeeAddress)
+		{
+			StringBuilder letter = new StringBuilder();
+			letter.AppendLine($"Dismissal Letter");
+			letter.AppendLine();
+			letter.AppendLine($"{employerName}");
+			letter.AppendLine($"{employerAddress}");
+			letter.AppendLine($"Registration Number: {registrationNumber}");
+			letter.AppendLine();
+			letter.AppendLine($"{employeeName}");
+			letter.AppendLine($"{employeeAddress}");
+			letter.AppendLine();
+			letter.AppendLine($"{DateTime.Now:yyyy-MM-dd}");
+			letter.AppendLine();
+			letter.AppendLine($"Dear {employeeName},");
+			letter.AppendLine();
+			letter.AppendLine($"Re: Termination of Employment");
+			letter.AppendLine();
+			letter.AppendLine($"We regret to inform you that your employment with {employerName} will terminate effective {dismissalDate:yyyy-MM-dd}.");
+			letter.AppendLine();
+			letter.AppendLine($"You were employed by {employerName} since {hireDate:yyyy-MM-dd}. Following a review of our operational requirements, we have made the difficult decision to terminate your employment.");
+			letter.AppendLine();
+			letter.AppendLine($"Details of Termination:");
+			letter.AppendLine($"- Effective Date: {dismissalDate:yyyy-MM-dd}");
+			letter.AppendLine($"- Notice Period: In accordance with your contract, you are entitled to one week's notice, which you will receive as payment in lieu of notice.");
+			letter.AppendLine($"- Final Pay: Your final paycheck, including any accrued but unused holiday pay, will be processed and paid on the next scheduled payroll date.");
+			letter.AppendLine();
+			letter.AppendLine($"Please return any company property in your possession, including but not limited to keys, access cards, and equipment, by {dismissalDate:yyyy-MM-dd}.");
+			letter.AppendLine();
+			letter.AppendLine($"We thank you for your contributions to {employerName} during your tenure and wish you the best in your future endeavors.");
+			letter.AppendLine();
+			letter.AppendLine($"Yours sincerely,");
+			letter.AppendLine();
+			letter.AppendLine($"______________________________");
+			letter.AppendLine($"Human Resources Department");
+			letter.AppendLine($"{employerName}");
+
+			return letter.ToString();
 		}
 	}
 }
