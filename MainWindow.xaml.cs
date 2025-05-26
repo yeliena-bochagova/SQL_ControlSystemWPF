@@ -1724,8 +1724,6 @@ namespace DataBase
 		}
 		#endregion
 
-
-
 		private void DismissButton_Click(object sender, RoutedEventArgs e)
 		{
 
