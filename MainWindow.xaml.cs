@@ -177,7 +177,7 @@ namespace DataBase
 
 		private async void ConnectToDB_Click(object sender, RoutedEventArgs e)
 		{
-			string DBName = "ScientificSystem";
+			string DBName = "ScientificSystem2";
 			string HostName = ServerName.Text?.Trim();
 
 			if (string.IsNullOrWhiteSpace(DBName) || string.IsNullOrWhiteSpace(HostName))
@@ -1084,32 +1084,13 @@ namespace DataBase
 			}
 		}
 
-		private void SaveButton_Click(object sender, RoutedEventArgs e)
+		private async void SaveButton_Click(object sender, RoutedEventArgs e)
 		{
 			if (ContentGrid.ItemsSource == null || ContentGrid.Items.Count == 0)
 			{
 				MessageBox.Show("No data to save.", "Error");
 				return;
 			}
-
-			// Діалог для вибору CSV-файлу
-			SaveFileDialog csvSaveFileDialog = new SaveFileDialog
-			{
-				Filter = "CSV files (*.csv)|*.csv|All files (*.*)|*.*",
-				Title = "Save Results As (CSV)",
-				FileName = $"{CurrentTableName}_report_{DateTime.Now:yyyyMMdd_HHmmss}.csv"
-			};
-
-			// Діалог для вибору Excel-файлу
-			SaveFileDialog xlsxSaveFileDialog = new SaveFileDialog
-			{
-				Filter = "Excel files (*.xlsx)|*.xlsx|All files (*.*)|*.*",
-				Title = "Save Results As (Excel)",
-				FileName = $"{CurrentTableName}_report_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx"
-			};
-
-			if (csvSaveFileDialog.ShowDialog() != true || xlsxSaveFileDialog.ShowDialog() != true)
-				return;
 
 			try
 			{
@@ -1122,6 +1103,13 @@ namespace DataBase
 				}
 
 				DataTable dataTable = dataView.Table;
+
+				// Визначаємо шлях до папки Docs/Filters
+				string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+				string docsFolder = System.IO.Path.Combine(baseDir, "Docs", "Filters");
+
+				// Створюємо папку, якщо вона не існує
+				Directory.CreateDirectory(docsFolder);
 
 				// Збереження у CSV
 				StringBuilder csvContent = new StringBuilder();
@@ -1146,53 +1134,33 @@ namespace DataBase
 					IEnumerable<string> fields = row.ItemArray.Select(field =>
 					{
 						string escapedField = field?.ToString() ?? "";
-						escapedField = $"\"{escapedField.Replace("\"", "\"\"")}\""; // Екранування лапок
+						escapedField = $"\"{escapedField.Replace("\"", "\"\"")}\"";
 						return escapedField;
 					});
 					csvContent.AppendLine(string.Join(",", fields));
 				}
-				File.WriteAllText(csvSaveFileDialog.FileName, csvContent.ToString(), Encoding.UTF8);
 
-				// Збереження у Excel
-				ExcelPackage.LicenseContext = LicenseContext.NonCommercial; // Для безкоштовного використання
-				using (var package = new ExcelPackage())
-				{
-					var worksheet = package.Workbook.Worksheets.Add("Report");
-					// Додаємо заголовок звіту
-					worksheet.Cells[1, 1].Value = $"Report: Data Export from {CurrentTableName}";
-					worksheet.Cells[2, 1].Value = $"Generated on: {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
-					if (!string.IsNullOrWhiteSpace(filterValue) && filterValue != "Enter value to filter" && !string.IsNullOrWhiteSpace(selectedColumn))
-					{
-						worksheet.Cells[3, 1].Value = $"Filter Parameters: {selectedColumn} contains \"{filterValue}\"";
-					}
-					else
-					{
-						worksheet.Cells[3, 1].Value = "Filter Parameters: None";
-					}
+				// Insert into Document table and retrieve the new document_id
+				string insertDocumentQuery = @"
+            INSERT INTO dbo.Document (Document_type, Employee_id, Document_date, Description)
+            OUTPUT INSERTED.Document_id
+            VALUES (@DocumentType, @EmployeeId, @DocumentDate, @Description)";
 
-					// Додаємо заголовки стовпців
-					for (int col = 0; col < dataTable.Columns.Count; col++)
-					{
-						worksheet.Cells[5, col + 1].Value = dataTable.Columns[col].ColumnName;
-					}
+				using var conn = new SqlConnection(ConnStr);
+				await conn.OpenAsync();
 
-					// Додаємо дані
-					for (int row = 0; row < dataTable.Rows.Count; row++)
-					{
-						for (int col = 0; col < dataTable.Columns.Count; col++)
-						{
-							worksheet.Cells[row + 6, col + 1].Value = dataTable.Rows[row][col]?.ToString();
-						}
-					}
+				using var docCmd = new SqlCommand(insertDocumentQuery, conn);
+				docCmd.Parameters.AddWithValue("@EmployeeId", 0);
+				docCmd.Parameters.AddWithValue("@DocumentDate", DateTime.Now);
+				docCmd.Parameters.AddWithValue("@DocumentType", "Filters");
+				docCmd.Parameters.AddWithValue("@Description", "generated automatically");
 
-					// Авто-ширина стовпців
-					worksheet.Cells.AutoFitColumns();
+				int documentId = (int)await docCmd.ExecuteScalarAsync();
+				string csvFilePath = System.IO.Path.Combine(docsFolder, $"_report_{documentId}.csv");
 
-					// Зберігаємо файл Excel
-					File.WriteAllBytes(xlsxSaveFileDialog.FileName, package.GetAsByteArray());
-				}
+				File.WriteAllText(csvFilePath, csvContent.ToString(), Encoding.UTF8);
 
-				MessageBox.Show($"Report saved successfully to {csvSaveFileDialog.FileName} and {xlsxSaveFileDialog.FileName}", "Success");
+				MessageBox.Show($"Report saved successfully to {csvFilePath}", "Success");
 			}
 			catch (Exception ex)
 			{
@@ -1257,7 +1225,7 @@ namespace DataBase
 			Process.Start(startInfo);
 		}
 
-		private void CellDoubleClick(object sender, MouseButtonEventArgs e)
+		private async void CellDoubleClick(object sender, MouseButtonEventArgs e)
 		{
 			if (CurrentTableName == "Document")
 			{
@@ -1319,10 +1287,12 @@ namespace DataBase
 					}
 
 					// Access the Documentid column by name
-					object idValue;
+					object idValue, personId;
 					try
 					{
 						idValue = dataRowView["Document_id"];
+						personId = dataRowView["Employee_id"];
+
 					}
 					catch (Exception ex)
 					{
@@ -1343,7 +1313,14 @@ namespace DataBase
 						return;
 					}
 
-					string filename = $"{idValue}.txt";
+					if (!int.TryParse(idValue.ToString(), out int documentId))
+					{
+						MessageBox.Show("Invalid Document_id format.");
+						return;
+					}
+
+					string filename = $"{personId}.txt";
+				
 					//MessageBox.Show($"Opening document: {filename}");
 
 					switch (documentType)
@@ -1358,6 +1335,7 @@ namespace DataBase
 							return;
 						case "Filters":
 							docsFolder = System.IO.Path.Combine(baseDir, "Docs", "Filters");
+							filename = $"_report_{documentId}.csv";
 							OpenDocument(docsFolder, filename);
 							return;
 						default:
@@ -1397,6 +1375,360 @@ namespace DataBase
 			return FindVisualParent<DataGridCell>(hitTestResult.VisualHit);
 		}
 
+		private async void HireButton_Click(object sender, RoutedEventArgs e)
+		{
+			if (string.IsNullOrWhiteSpace(ConnStr))
+			{
+				MessageBox.Show("Please connect to a database first.", "Connection Error");
+				return;
+			}
 
+			try
+			{
+				// Prompt for person details
+				string firstName = Interaction.InputBox("Enter First Name:", "New Person", "");
+				if (string.IsNullOrWhiteSpace(firstName))
+				{
+					MessageBox.Show("First name cannot be empty.", "Error");
+					return;
+				}
+
+				string lastName = Interaction.InputBox("Enter Last Name:", "New Person", "");
+				if (string.IsNullOrWhiteSpace(lastName))
+				{
+					MessageBox.Show("Last name cannot be empty.", "Error");
+					return;
+				}
+
+				string birthDate = Interaction.InputBox("Enter Birth Date (yyyy-MM-dd):", "New Person", "1990-01-01");
+				if (!DateTime.TryParse(birthDate, out DateTime parsedBirthDate))
+				{
+					MessageBox.Show("Invalid birth date format. Please use yyyy-MM-dd.", "Error");
+					return;
+				}
+
+				string passport = Interaction.InputBox("Enter Passport Number:", "New Person", "");
+				if (string.IsNullOrWhiteSpace(passport))
+				{
+					MessageBox.Show("Passport number cannot be empty.", "Error");
+					return;
+				}
+
+				string adress = Interaction.InputBox("Enter Address:", "New Person", "");
+				if (string.IsNullOrWhiteSpace(adress))
+				{
+					MessageBox.Show("Address cannot be empty.", "Error");
+					return;
+				}
+
+				string email = Interaction.InputBox("Enter Email:", "New Person", "");
+				if (string.IsNullOrWhiteSpace(email))
+				{
+					MessageBox.Show("Email cannot be empty.", "Error");
+					return;
+				}
+
+				string phone = Interaction.InputBox("Enter Phone Number:", "New Person", "");
+				if (string.IsNullOrWhiteSpace(phone))
+				{
+					MessageBox.Show("Phone number cannot be empty.", "Error");
+					return;
+				}
+
+				// Prompt for employee details
+				string jobTitle = Interaction.InputBox("Enter Job Title:", "New Employee", "");
+				if (string.IsNullOrWhiteSpace(jobTitle))
+				{
+					MessageBox.Show("Job title cannot be empty.", "Error");
+					return;
+				}
+
+				string hireDate = Interaction.InputBox("Enter Hire Date (yyyy-MM-dd):", "New Employee", DateTime.Now.ToString("yyyy-MM-dd"));
+				if (!DateTime.TryParse(hireDate, out DateTime parsedHireDate))
+				{
+					MessageBox.Show("Invalid hire date format. Please use yyyy-MM-dd.", "Error");
+					return;
+				}
+
+				string departmentIdInput = Interaction.InputBox("Enter Department ID (e.g., 1-8):", "New Employee", "1");
+				if (!int.TryParse(departmentIdInput, out int departmentId) || departmentId < 1 || departmentId > 8)
+				{
+					MessageBox.Show("Invalid Department ID. Please enter a number between 1 and 8.", "Error");
+					return;
+				}
+
+				string positionIdInput = Interaction.InputBox("Enter Position ID (e.g., 1-5):", "New Employee", "1");
+				if (!int.TryParse(positionIdInput, out int positionId) || positionId < 1 || positionId > 5)
+				{
+					MessageBox.Show("Invalid Position ID. Please enter a number between 1 and 5.", "Error");
+					return;
+				}
+
+				string salaryInput = Interaction.InputBox("Enter Annual Salary (£):", "New Employee", "30000");
+				if (!decimal.TryParse(salaryInput, out decimal salary) || salary <= 0)
+				{
+					MessageBox.Show("Invalid salary amount.", "Error");
+					return;
+				}
+
+				// Insert into Person table
+				using var conn = new SqlConnection(ConnStr);
+				await conn.OpenAsync();
+
+				string insertPersonQuery = @"
+            INSERT INTO Person (First_name, Last_name, Birth_date, Passport, Adress, Email, Phone)
+            OUTPUT INSERTED.Person_id
+            VALUES (@FirstName, @LastName, @BirthDate, @Passport, @Adress, @Email, @Phone)";
+
+				using var personCmd = new SqlCommand(insertPersonQuery, conn);
+				personCmd.Parameters.AddWithValue("@FirstName", firstName);
+				personCmd.Parameters.AddWithValue("@LastName", lastName);
+				personCmd.Parameters.AddWithValue("@BirthDate", parsedBirthDate);
+				personCmd.Parameters.AddWithValue("@Passport", passport);
+				personCmd.Parameters.AddWithValue("@Adress", adress);
+				personCmd.Parameters.AddWithValue("@Email", email);
+				personCmd.Parameters.AddWithValue("@Phone", phone);
+
+				var personId = await personCmd.ExecuteScalarAsync();
+				if (personId == null)
+				{
+					MessageBox.Show("Failed to insert person.", "Error");
+					return;
+				}
+
+				// Insert into Employee table
+				string insertEmployeeQuery = @"
+					INSERT INTO Employee (Person_id, Department_id, Position_id, Hire_date, Academic_degree_id, Academic_title_id)
+					OUTPUT INSERTED.Employee_id
+					VALUES (@PersonId, @DepartmentId, @PositionId, @HireDate, @AcademicDegreeId, @AcademicTitleId)";
+
+				using var employeeCmd = new SqlCommand(insertEmployeeQuery, conn);
+				employeeCmd.Parameters.AddWithValue("@PersonId", personId);
+				employeeCmd.Parameters.AddWithValue("@DepartmentId", departmentId);
+				employeeCmd.Parameters.AddWithValue("@PositionId", positionId);
+				employeeCmd.Parameters.AddWithValue("@HireDate", parsedHireDate);
+				employeeCmd.Parameters.AddWithValue("@AcademicDegreeId", 1);
+				employeeCmd.Parameters.AddWithValue("@AcademicTitleId", 1);
+
+
+				var employeeId = await employeeCmd.ExecuteScalarAsync();
+				if (employeeId == null)
+				{
+					MessageBox.Show("Failed to insert employee.", "Error");
+					return;
+				}
+
+				// Insert into Document table
+				string insertDocumentQuery = @"
+					INSERT INTO dbo.Document (Document_type, Employee_id, Document_date, Description)
+					VALUES ('Employement', @EmployeeId, @DocumentDate, @Description)";
+
+				using var docCmd = new SqlCommand(insertDocumentQuery, conn);
+				docCmd.Parameters.AddWithValue("@EmployeeId", employeeId);
+				docCmd.Parameters.AddWithValue("@DocumentDate", DateTime.Now);
+				docCmd.Parameters.AddWithValue("@Description", "generated automatically");
+
+				await docCmd.ExecuteNonQueryAsync();
+
+				// Generate and save the contract
+				string employerName = "ScientificSystem Ltd"; // Replace with actual employer name or prompt
+				string employerAddress = "123 Business Park, Scotland"; // Replace with actual address or prompt
+				string registrationNumber = "SC123456"; // Replace with actual registration number
+				string docsFolder = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Docs", "Hired");
+				string filename = $"{employeeId}.txt";
+
+				try
+				{
+					if (!Directory.Exists(docsFolder))
+					{
+						Directory.CreateDirectory(docsFolder);
+					}
+
+					string contractContent = GenerateEmployeeContract(
+						employerName,
+						$"{firstName} {lastName}",
+						employerAddress,
+						registrationNumber,
+						jobTitle,
+						parsedHireDate,
+						salary,
+						adress
+					);
+
+					File.WriteAllText(System.IO.Path.Combine(docsFolder, filename), contractContent, Encoding.UTF8);
+					MessageBox.Show($"Person and employee added successfully. Person ID: {personId}, Employee ID: {employeeId}. Contract saved to {filename}.", "Success");
+
+					// Refresh the Person or Employee table if currently selected
+					if (CurrentTableName == "Person")
+					{
+						await ExecuteScriptAsync("SELECT * FROM Person");
+					}
+					else if (CurrentTableName == "Employee")
+					{
+						await ExecuteScriptAsync("SELECT * FROM Employee");
+					}
+
+					// Open the generated document
+					OpenDocument(docsFolder, filename);
+				}
+				catch (Exception ex)
+				{
+					MessageBox.Show($"Failed to save contract: {ex.Message}", "Error");
+				}
+			}
+			catch (Exception ex)
+			{
+				MessageBox.Show($"Failed to add person or employee: {ex.Message}", "Error");
+			}
+		}
+
+		#region generate employee contract
+
+		private string GenerateEmployeeContract(
+			string employerName,
+			string employeeName,
+			string employerAddress,
+			string registrationNumber,
+			string jobTitle,
+			DateTime startDate,
+			decimal salary,
+			string employeeAddress)
+		{
+			StringBuilder contract = new StringBuilder();
+
+			contract.AppendLine($"Employee Contract");
+			contract.AppendLine();
+			contract.AppendLine($"{employerName}");
+			contract.AppendLine();
+			contract.AppendLine($"Statement of Terms and Conditions of Employment");
+			contract.AppendLine();
+			contract.AppendLine($"{employeeName}");
+			contract.AppendLine($"{DateTime.Now:yyyy-MM-dd}");
+			contract.AppendLine();
+			contract.AppendLine($"TERMS AND CONDITIONS OF EMPLOYMENT");
+			contract.AppendLine();
+			contract.AppendLine($"BETWEEN");
+			contract.AppendLine($"(a) {employerName}, an organisation registered in Scotland under registration number {registrationNumber} whose registered office is at {employerAddress} (hereinafter referred to as “the Employer”)");
+			contract.AppendLine($"(b) {employeeName} of {employeeAddress} (hereinafter referred to as “you”)");
+			contract.AppendLine();
+			contract.AppendLine($"IT IS AGREED as follows:");
+			contract.AppendLine();
+			contract.AppendLine($"1. General");
+			contract.AppendLine($"This document is a statement of the main terms and conditions of employment which govern your service with the Employer. Your service with the Employer is also subject to the terms contained in the letter offering you employment ‘the offer letter’. If there should be any ambiguity or discrepancy between the terms in the offer letter and in the terms set out in this document, the terms of the Offer letter will prevail, except where expressly stated to the contrary.");
+			contract.AppendLine();
+			contract.AppendLine($"2. Duties and Job Title");
+			contract.AppendLine($"2.1 You are employed by the Employer in the capacity of {jobTitle}. You will be required to undertake such duties and responsibilities as may be determined by the Employer from time to time.");
+			contract.AppendLine($"2.2 The Employer reserves the right to vary your duties and responsibilities at any time and from time to time according to the needs of the Employer’s business, following discussion and agreement with you.");
+			contract.AppendLine();
+			contract.AppendLine($"3. Date of Commencement/ Date of Continuous employment [and Notice Period]");
+			contract.AppendLine($"3.1 Your period of continuous employment with us begins on {startDate:yyyy-MM-dd}.");
+			contract.AppendLine($"3.2 No employment with a previous employer counts as part of your period of continuous employment.");
+			contract.AppendLine($"3.3 The first 6 months of your employment will be a probationary period. During this period your performance and conduct will be monitored. At the end of the probationary period your performance will be reviewed and if found satisfactory your appointment will be confirmed. The probationary period may be extended at the Employer’s discretion.");
+			contract.AppendLine($"During the 6 months probationary period the notice required by either party to this Contract to terminate your employment will be one week.");
+			contract.AppendLine();
+			contract.AppendLine($"4. Hours of work");
+			contract.AppendLine($"4.1 Your normal working hours are between 9:00 am and 5:00 pm Mondays to Fridays inclusive with one hour for lunch which must be taken between 12:00 pm and 2:00 pm.");
+			contract.AppendLine($"4.2 The Employer reserves the right to alter working hours as necessary, following discussion and agreement with you.");
+			contract.AppendLine($"4.3 You may be asked to work additional hours beyond your normal hours and it is a condition of your employment that you agree to do so when reasonably asked. You will not be entitled to overtime payments for hours worked outside your normal working hours.");
+			contract.AppendLine();
+			contract.AppendLine($"5. Place of work");
+			contract.AppendLine($"Your normal place of work will be at {employerAddress} or such other places as the Employer may reasonably require.");
+			contract.AppendLine();
+			contract.AppendLine($"6. Remuneration");
+			contract.AppendLine($"6.1 Your salary is £{salary:N2} per year, to be paid monthly normally on the last Friday of each month. Payment will be made by direct credit transfer to a bank or building society account nominated by you. You will not be entitled to overtime payment for hours worked outside your normal weekly hours.");
+			contract.AppendLine($"6.2 Your salary will be reviewed annually entirely at our discretion.");
+			contract.AppendLine($"6.3 The Employer reserves the right to seek reimbursement by deduction from your salary, in accordance with the provisions of the Employment Rights Act 1966 in the event of any material deficiencies attributable to you, in particular damage to Employer property or in the event of overpayment of salary, recovery of unearned holiday pay or other remunerations, or if any other sums are due by you to the Employer arising from your employment.");
+			contract.AppendLine();
+			contract.AppendLine($"7. Collective agreements");
+			contract.AppendLine($"There are no collective agreements relevant to your employment.");
+			contract.AppendLine();
+			contract.AppendLine($"8. Holidays");
+			contract.AppendLine($"8.1 You are entitled to 28 days holiday in each complete calendar year, including bank and public holidays.");
+			contract.AppendLine($"8.2 The holiday year commences on January 1 and finishes on December 31 each year.");
+			contract.AppendLine($"8.3 If your employment commences or finishes part way through the holiday year, your holiday entitlement will be prorated accordingly.");
+			contract.AppendLine($"8.4 If, on termination of employment:");
+			contract.AppendLine($"8.4.1 you have exceeded your prorated holiday entitlement, the Employer will deduct a payment in lieu of days holiday taken in excess of your prorated holiday entitlement, on the basis of 1/260th, and you authorise the Employer to make a deduction from the payment of any final salary.");
+			contract.AppendLine($"8.4.2 you have holiday entitlement still owing, the Employer may, at its discretion, require you to take your holiday during your notice period or make a payment in lieu of untaken holiday entitlement.");
+			contract.AppendLine($"8.5 Holidays must be taken at times convenient to the Employer. You must obtain approval of proposed holiday dates in advance from your Manager. You will not be allowed to take more than two weeks at any one time, save at the Employer’s discretion. You must not book holidays until your request for approval has been formally agreed.");
+			contract.AppendLine($"8.6 All holidays must be taken in the year in which it is accrued. In exceptional circumstances you may carry forward up to 5 days untaken holiday entitlement to the next holiday year. This applies for one year only, and holidays may not be carried forward to a subsequent holiday year.");
+			contract.AppendLine($"8.7 If you are sick or injured while on holiday, the Employer will allow you to transfer to sick leave and take replacement holiday at a later date, subject to notification and certification requirements.");
+			contract.AppendLine();
+			contract.AppendLine($"9. Sickness Absence");
+			contract.AppendLine($"9.1 In the event of your absence for any reason you or someone on your behalf should contact your Manager at the earliest opportunity and no later than 9:00 am on the first day of the absence to inform him/her of the reason for absence. You must inform the Employer as soon as possible of any change in the date of your expected return to work.");
+			contract.AppendLine($"9.2 A self-certification form should be completed for absences of up to seven days. The form will be supplied to you.");
+			contract.AppendLine($"9.3 For periods of sickness of more than seven consecutive days, including weekends, you will be required to obtain a Statement of Fitness for Work (‘Fit Note’) / Medical Certificate and send this to your Manager.");
+			contract.AppendLine($"9.4 If you are absent for four or more days by reason of sickness or incapacity, you are entitled to Statutory Sick Pay (SSP), provided that you have met the requirements above. For the purposes of the SSP scheme the ‘qualifying days’ are Monday to Friday. There is no contractual right to payment in respect of periods of absence due to sickness or incapacity. Any such payments are at the discretion of the Employer.");
+			contract.AppendLine($"9.5 The Employer has the right to monitor and record absence levels and reasons for absences. Such information will be kept confidential.");
+			contract.AppendLine($"9.6 The Employer may require you to undergo a medical examination by a medical practitioner nominated by us at any stage of your employment, and you agree to authorise such medical practitioner to prepare a report detailing the results of the examination, which you agree may be disclosed to the Employer. The Employer will bear the cost of such medical examination.");
+			contract.AppendLine();
+			contract.AppendLine($"10. Maternity and Paternity Rights");
+			contract.AppendLine($"The Employer will comply with its statutory obligations with respect to maternity and paternity rights and rights dealing with time off for dependants. The Employer’s policies in this regard are available on request from your Manager.");
+			contract.AppendLine();
+			contract.AppendLine($"11. Pension");
+			contract.AppendLine($"There are no pension arrangements applicable to your employment.");
+			contract.AppendLine();
+			contract.AppendLine($"12. Non – Compulsory Retirement");
+			contract.AppendLine($"The Employer does not operate a normal retirement age and therefore you will not be compulsorily retired on reaching a particular age. However, you can choose to retire voluntarily at any time, provided that you give the required period of notice to terminate your employment.");
+			contract.AppendLine();
+			contract.AppendLine($"13. Restrictions and Confidentiality");
+			contract.AppendLine($"13.1 You may not, without the prior written consent of the Employer, devote any time to any business other than the business of the Employer or to any public or charitable duty or endeavour during your normal hours of work.");
+			contract.AppendLine($"13.2 You will not at any time either during your employment or afterwards use or divulge to any person, firm or Employer, except in the proper course of your duties during your employment by the Employer, any confidential information identifying or relating to the Employer, details of which are not in the public domain.");
+			contract.AppendLine();
+			contract.AppendLine($"14. Mobility");
+			contract.AppendLine($"You may be required to travel on Employer business anywhere in the UK. Travel and subsistence will be paid to you in accordance with the Employer’s Expenses Policy.");
+			contract.AppendLine();
+			contract.AppendLine($"15. Grievance Procedure");
+			contract.AppendLine($"The formal Grievance Procedure is available on request from your Manager.");
+			contract.AppendLine();
+			contract.AppendLine($"16. Disciplinary Procedure");
+			contract.AppendLine($"The disciplinary rules applicable to your employment are set out in the attached Disciplinary Rules and Procedure.");
+			contract.AppendLine();
+			contract.AppendLine($"17. Employee Handbook and Employment Policies");
+			contract.AppendLine($"All employees have a duty to adhere to the Employer’s other policies in force, including but not exclusive to the Employer’s Health and Safety, Fire Safety, Sickness and Absence and Equal Opportunities Policies.");
+			contract.AppendLine();
+			contract.AppendLine($"18. Termination of employment");
+			contract.AppendLine($"18.1 During the 6 months probationary period the notice required by either party to this Contract to terminate your employment will be one week.");
+			contract.AppendLine($"After the successful completion of any probationary period, your employment may be ended by you giving the Employer one month’s written notice. The Employer will give you one month’s written notice and after four years’ continuous service a further one week’s notice for each additional complete year of service up to a maximum of 12 weeks’ notice.");
+			contract.AppendLine($"18.2 The Employer reserves the right in their absolute discretion to pay you salary in lieu of notice.");
+			contract.AppendLine($"18.3 Nothing in this Contract prevents the Employer from terminating your employment summarily or otherwise in the event of any serious breach by you of the terms of your employment or in the event of any act or acts of gross misconduct by you.");
+			contract.AppendLine();
+			contract.AppendLine($"19. Data Protection");
+			contract.AppendLine($"You agree to the Employer holding and processing, both electronically and manually, personal data about you (including sensitive personal data as defined in the Data Protection Act 1998) for the operations, management, security or administration of the Employer and for the purpose of complying with applicable laws, regulations and procedures.");
+			contract.AppendLine();
+			contract.AppendLine($"20. Confidential Information");
+			contract.AppendLine($"You will not at any time either during your employment or afterwards use or divulge to any person, firm or Employer, except in the proper course of your duties during your employment by the Employer, any confidential information identifying or relating to the Employer, details of which are not in the public domain.");
+			contract.AppendLine();
+			contract.AppendLine($"21. Copyright, Inventions and Patents");
+			contract.AppendLine($"21.1 All records, documents, papers (including copies and summaries thereof) and other copyright protected works made or acquired by you in the course of your employment shall, together with all the world-wide copyright and design rights in all such works, be and at all times remain the absolute property of the Employer.");
+			contract.AppendLine($"21.2 You hereby irrevocably and unconditionally waive all rights granted by Chapter IV of Part I of the Copyright, Designs and Patents Act 1988 that vest in you (whether before, on or after the date hereof) in connection with your authorship of any copyright works in the course of your employment with the Employer, wherever in the world enforceable, including without limitation the right to be identified as the author of any such works and the right not to have any such works subjected to derogatory treatment.");
+			contract.AppendLine();
+			contract.AppendLine($"22. Changes to Terms and Conditions of Employment");
+			contract.AppendLine($"The Employer may amend, vary or terminate the terms and conditions in this document. Any such change to your terms and conditions will be subject to consultation and agreement with you and notified to you personally in writing.");
+			contract.AppendLine();
+			contract.AppendLine($"23. Severability");
+			contract.AppendLine($"The various provision of this Agreement are severable, and if any provision or identifiable part thereof is held to be invalid or unenforceable by any court of competent jurisdiction then such invalidity or unenforceability shall not affect the validity or enforceability of the remaining provisions or identifiable parts.");
+			contract.AppendLine();
+			contract.AppendLine($"24. Jurisdiction");
+			contract.AppendLine($"This Agreement shall be governed by and construed in accordance with Scots Law and Scottish Courts.");
+			contract.AppendLine();
+			contract.AppendLine($"Issued for and on behalf of {employerName}");
+			contract.AppendLine($"Signed: ______________________________ Date: {DateTime.Now:yyyy-MM-dd}");
+			contract.AppendLine();
+			contract.AppendLine($"Employee");
+			contract.AppendLine($"I hereby warrant and confirm that I am not prevented by previous employment terms and conditions, or in any other way, from entering into employment with the Employer or performing any of the duties of employment referred to above. I accept the terms of this Agreement.");
+			contract.AppendLine($"Signed: ______________________________ Date: {DateTime.Now:yyyy-MM-dd}");
+			contract.AppendLine();
+			contract.AppendLine($"{employeeName}");
+
+			return contract.ToString();
+		}
+		#endregion
+
+
+
+		private void DismissButton_Click(object sender, RoutedEventArgs e)
+		{
+
+		}
 	}
 }

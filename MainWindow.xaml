@@ -8,7 +8,7 @@
         mc:Ignorable="d"
         Title="MainWindow" Height="475" Width="1200" WindowStyle="None"
         MinWidth="800" MinHeight="450"
-        MouseDown="Window_MouseDown" ResizeMode="CanResize" Foreground="Black" Background="#FF3C3C3C">
+        MouseDown="Window_MouseDown" ResizeMode="NoResize" Foreground="Black" Background="#FF3C3C3C">
     <Window.Resources>
         <SolidColorBrush x:Key="TextBox.Static.Border" Color="#FFABAdB3"/>
         <SolidColorBrush x:Key="TextBox.MouseOver.Border" Color="#FF7EB4EA"/>
@@ -570,6 +570,8 @@
                         <TranslateTransform X="-0.356"/>
                     </TransformGroup>
                 </TextBlock.RenderTransform><Run Language="pl-pl" Text="Documents"/></TextBlock>
+            <Button Opacity="0.9" Background="#FF73ED73"  Style="{DynamicResource ButtonStyleMenu}" x:Name="Hire" Content="Hire" Click="HireButton_Click" RenderTransformOrigin="0.821,-0.19" Grid.Column="1" Margin="824,308,126,58"/>
+            <Button Opacity="0.9" Background="#FFED7373"  Style="{DynamicResource ButtonStyleMenu}" x:Name="Hire_Copy" Content="Dismiss" Click="DismissButton_Click" RenderTransformOrigin="0.821,-0.19" Grid.Column="1" Margin="944,308,6,58"/>
         </Grid>
 
         <Grid Name="MenuConnectGrid" d:IsHidden="True" Grid.RowSpan="2">
