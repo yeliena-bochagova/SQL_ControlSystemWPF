@@ -20,18 +20,21 @@ using OfficeOpenXml;
 using System.Reflection.Metadata;
 using System.Linq;
 using System.Diagnostics;
-
+using PdfSharpCore.Pdf;
+using PdfSharpCore.Drawing;
 
 namespace DataBase
 {
 	public partial class MainWindow : Window
 	{
-		private string? ConnStr;
-		private string? CurrentTableName;
+		private string? ConnStr; // Connection string for the database
+		private string? CurrentTableName; // Name of the currently selected table
 
+		// Constructor: Initializes the main window and UI components
 		public MainWindow()
 		{
 			InitializeComponent();
+			// Set initial UI visibility: hide main app grid, show connection menu
 			AppGrid.Visibility = Visibility.Hidden;
 			MenuConnectGrid.Visibility = Visibility.Visible;
 			BackToTableButton.Visibility = Visibility.Hidden;
@@ -39,27 +42,31 @@ namespace DataBase
 			ResultGrid.Visibility = Visibility.Hidden;
 			Query.Visibility = Visibility.Hidden;
 
-			DocumentLList.Items.Add("Employement");
+			// Populate DocumentLList with predefined document types
+			DocumentLList.Items.Add("Employment");
 			DocumentLList.Items.Add("Dismissial");
 			DocumentLList.Items.Add("Filters");
 		}
 
+		// Event handler for Disconnect button: Resets connection and UI state
 		private void DisconnectButton_Click(object sender, RoutedEventArgs e)
 		{
 			try
 			{
+				// Clear connection string and current table
 				ConnStr = null;
 				CurrentTableName = null;
 
+				// Clear data grids and reset UI elements
 				ContentGrid.ItemsSource = null;
 				ResultGrid.ItemsSource = null;
 				Tables_List.Items.Clear();
 				Query.Text = string.Empty;
 				DBNameTextBlock.Text = string.Empty;
 
+				// Switch visibility back to connection menu
 				AppGrid.Visibility = Visibility.Hidden;
 				MenuConnectGrid.Visibility = Visibility.Visible;
-
 			}
 			catch (Exception ex)
 			{
@@ -67,13 +74,14 @@ namespace DataBase
 			}
 		}
 
+		// Event handler for window drag movement
 		private void Window_MouseDown(object sender, MouseButtonEventArgs e)
 		{
 			if (e.ButtonState == MouseButtonState.Pressed)
 			{
 				try
 				{
-					this.DragMove();
+					this.DragMove(); // Allows dragging the window
 				}
 				catch (Exception InvalidOperationException)
 				{
@@ -82,19 +90,20 @@ namespace DataBase
 			}
 		}
 
+		// Event handler for Connect button: Executes SQL script from Query text
 		private async void Connect_Click(object sender, RoutedEventArgs e)
 		{
 			try
 			{
-				await ExecuteScriptAsync(Query.Text);
+				await ExecuteScriptAsync(Query.Text); // Run the provided SQL query
 			}
 			catch (Exception ex)
 			{
 				MessageBox.Show(ex.Message, "Error");
 			}
-
 		}
 
+		// Executes SQL script, handling different types of queries (SELECT, INSERT, UPDATE, DELETE)
 		private async Task ExecuteScriptAsync(string sqlScript)
 		{
 			if (string.IsNullOrWhiteSpace(ConnStr))
@@ -106,7 +115,7 @@ namespace DataBase
 			using var conn = new SqlConnection(ConnStr);
 			try
 			{
-				await conn.OpenAsync();
+				await conn.OpenAsync(); // Open database connection
 			}
 			catch (Exception ex)
 			{
@@ -114,6 +123,7 @@ namespace DataBase
 				return;
 			}
 
+			// Split SQL script into batches using "GO" separator
 			var batches = Regex.Split(
 				sqlScript,
 				@"^\s*GO\s*($|\-\-.*$)",
@@ -126,10 +136,11 @@ namespace DataBase
 
 				using var cmd = new SqlCommand(sql, conn);
 
+				// Handle different SQL commands
 				if (sql.StartsWith("SELECT", StringComparison.OrdinalIgnoreCase)
 					|| sql.StartsWith("WITH", StringComparison.OrdinalIgnoreCase))
 				{
-					await ShowResultAsync(cmd);
+					await ShowResultAsync(cmd); // Display SELECT query results
 				}
 				else if (sql.StartsWith("INSERT", StringComparison.OrdinalIgnoreCase))
 				{
@@ -139,7 +150,7 @@ namespace DataBase
 				else if (sql.StartsWith("UPDATE", StringComparison.OrdinalIgnoreCase))
 				{
 					var rows = await cmd.ExecuteNonQueryAsync();
-					//MessageBox.Show($"Updated {rows} row(s)", "Update Result"); //IT WAS SO FCKNG ANNOYING DO NOT UNCOMMENT THIS SHIT
+					// MessageBox.Show($"Updated {rows} row(s)", "Update Result"); // Commented out to avoid annoyance
 				}
 				else if (sql.StartsWith("DELETE", StringComparison.OrdinalIgnoreCase))
 				{
@@ -154,27 +165,26 @@ namespace DataBase
 			}
 		}
 
+		// Displays query results in ContentGrid and ResultGrid
 		private async Task ShowResultAsync(SqlCommand cmd)
 		{
 			using var reader = await cmd.ExecuteReaderAsync();
 			var table = new DataTable();
 			table.Load(reader);
 
-			// Clear existing ItemsSource to force refresh
+			// Clear and refresh data grids
 			ContentGrid.ItemsSource = null;
 			ResultGrid.ItemsSource = null;
-
-			// Assign new data and force UI refresh
 			ContentGrid.ItemsSource = table.DefaultView;
 			ResultGrid.ItemsSource = table.DefaultView;
 
-			// Force the DataGrid to refresh its UI
 			ContentGrid.Items.Refresh();
 			ResultGrid.Items.Refresh();
 			ContentGrid.UpdateLayout();
 			ResultGrid.UpdateLayout();
 		}
 
+		// Event handler for Connect to DB button: Establishes database connection
 		private async void ConnectToDB_Click(object sender, RoutedEventArgs e)
 		{
 			string DBName = "ScientificSystem2";
@@ -186,6 +196,7 @@ namespace DataBase
 				return;
 			}
 
+			// Build connection string
 			ConnStr =
 				$"Server={HostName};" +
 				$"Database={DBName};" +
@@ -197,7 +208,7 @@ namespace DataBase
 				using var conn = new SqlConnection(ConnStr);
 				await conn.OpenAsync();
 				DBNameTextBlock.Text = DBName;
-				await LoadTableNames(conn);
+				await LoadTableNames(conn); // Load table names into UI
 				AppGrid.Visibility = Visibility.Visible;
 				MenuConnectGrid.Visibility = Visibility.Hidden;
 			}
@@ -213,6 +224,7 @@ namespace DataBase
 			}
 		}
 
+		// Loads table names from the database into Tables_List
 		private async Task LoadTableNames(SqlConnection conn)
 		{
 			try
@@ -234,6 +246,7 @@ namespace DataBase
 			}
 		}
 
+		// Event handler for double-click on table list: Loads table data and sets UI
 		private async void Tables_List_MouseDoubleClick(object sender, MouseButtonEventArgs e)
 		{
 			if (Tables_List.SelectedItem == null)
@@ -250,6 +263,7 @@ namespace DataBase
 			string query = $"SELECT * FROM [{selectedTable}]";
 			Query.Text = query;
 
+			// Customize button text based on selected table
 			if (selectedTable == "Academic_degree")
 			{
 				AddColumnButton.Content = $"Add degree";
@@ -277,13 +291,13 @@ namespace DataBase
 				EditColumnButton.FontSize = 12;
 			}
 
-			// Заповнення ComboBox списком стовпців таблиці
+			// Populate FilterColumnComboBox with table columns
 			FilterColumnComboBox.ItemsSource = GetTableColumns(CurrentTableName);
-			FilterColumnComboBox.SelectedIndex = 0; // Вибираємо перший стовпець за замовчуванням
+			FilterColumnComboBox.SelectedIndex = 0;
 
 			try
 			{
-				await ExecuteScriptAsync(query);
+				await ExecuteScriptAsync(query); // Load table data
 			}
 			catch (Exception ex)
 			{
@@ -291,6 +305,7 @@ namespace DataBase
 			}
 		}
 
+		// Event handler for Query button: Switches to query input mode
 		private void Querry_Button_Click(object sender, RoutedEventArgs e)
 		{
 			ContentGrid.Visibility = Visibility.Hidden;
@@ -301,6 +316,7 @@ namespace DataBase
 			ResultGrid.Visibility = Visibility.Visible;
 		}
 
+		// Event handler for Back to Table button: Returns to table view
 		private void BackToTable_Button_Click(object sender, RoutedEventArgs e)
 		{
 			ContentGrid.Visibility = Visibility.Visible;
@@ -311,24 +327,25 @@ namespace DataBase
 			ResultGrid.Visibility = Visibility.Hidden;
 		}
 
+		// Event handler for ContentGrid cell edit: Updates database on commit
 		private async void ContentGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
 		{
-
 			if (e.EditAction == DataGridEditAction.Commit)
 			{
 				await UpdateDatabase(e);
 			}
 		}
 
+		// Event handler for ResultGrid cell edit: Updates database on commit
 		private async void ResultGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
 		{
-
 			if (e.EditAction == DataGridEditAction.Commit)
 			{
 				await UpdateDatabase(e);
 			}
 		}
 
+		// Updates database based on edited cell data
 		private async Task UpdateDatabase(DataGridCellEditEndingEventArgs e)
 		{
 			if (string.IsNullOrWhiteSpace(CurrentTableName))
@@ -343,26 +360,20 @@ namespace DataBase
 				string columnName = e.Column.Header.ToString();
 				var newValue = (e.EditingElement as TextBox)?.Text;
 
-				//System.Diagnostics.Debug.WriteLine($"Column: {columnName}, New Value: {newValue}");
-
 				StringBuilder rowData = new StringBuilder();
 				foreach (DataColumn col in row.Row.Table.Columns)
 				{
 					rowData.Append($"{col.ColumnName}: {row[col.ColumnName]}, ");
 				}
-				//System.Diagnostics.Debug.WriteLine($"Row Data: {rowData.ToString().TrimEnd(',', ' ')}");
 
 				string primaryKeyColumn = GetPrimaryKeyColumn(CurrentTableName);
 				if (string.IsNullOrWhiteSpace(primaryKeyColumn))
 				{
 					MessageBox.Show("Could not determine the primary key for the table.", "Error");
-					//System.Diagnostics.Debug.WriteLine("No primary key found");
 					return;
 				}
 
 				var primaryKeyValue = row[primaryKeyColumn];
-				//System.Diagnostics.Debug.WriteLine($"Raw Primary Key Value: {primaryKeyValue}, Type: {primaryKeyValue?.GetType().Name ?? "null"}");
-
 				bool isNewRow = primaryKeyValue == DBNull.Value || primaryKeyValue == null || row.Row.RowState == DataRowState.Added;
 				if (isNewRow)
 				{
@@ -376,15 +387,12 @@ namespace DataBase
 					return;
 				}
 
-				//System.Diagnostics.Debug.WriteLine($"Primary Key Column: {primaryKeyColumn}, Primary Key Value: {pkValue}");
-
 				using var conn = new SqlConnection(ConnStr);
 				await conn.OpenAsync();
 				string existsQuery = $"SELECT COUNT(*) FROM [{CurrentTableName}] WHERE [{primaryKeyColumn}] = @PrimaryKeyValue";
 				using var existsCmd = new SqlCommand(existsQuery, conn);
 				existsCmd.Parameters.AddWithValue("@PrimaryKeyValue", pkValue);
 				int rowCount = (int)await existsCmd.ExecuteScalarAsync();
-				//System.Diagnostics.Debug.WriteLine($"Row count for ID {pkValue}: {rowCount}");
 				if (rowCount == 0)
 				{
 					MessageBox.Show($"Press enter again to insert a new row", "Warning");
@@ -402,7 +410,6 @@ namespace DataBase
 					else
 					{
 						MessageBox.Show($"Column {columnName} does not allow null values. Please enter a value.", "Error");
-						//System.Diagnostics.Debug.WriteLine($"Column {columnName} does not allow nulls");
 						return;
 					}
 				}
@@ -418,21 +425,14 @@ namespace DataBase
 				cmd.Parameters.AddWithValue("@NewValue", formattedNewValue);
 				cmd.Parameters.AddWithValue("@PrimaryKeyValue", pkValue);
 
-				string debugQuery = $"UPDATE [{CurrentTableName}] SET [{columnName}] = '{formattedNewValue}' WHERE [{primaryKeyColumn}] = '{pkValue}'";
-				//System.Diagnostics.Debug.WriteLine($"Executing query: {debugQuery}");
-
 				int rowsAffected = await cmd.ExecuteNonQueryAsync();
-				//System.Diagnostics.Debug.WriteLine($"Rows affected: {rowsAffected}");
-
 				if (rowsAffected > 0)
 				{
-					//MessageBox.Show($"Updated {rowsAffected} row(s)", "Update Result"); //IT WAS SO FCKNG ANNOYING DO NOT UNCOMMENT THIS SHIT
-					//System.Diagnostics.Debug.WriteLine("Update successful");
+					// MessageBox.Show($"Updated {rowsAffected} row(s)", "Update Result"); // Commented out to avoid annoyance
 				}
 				else
 				{
 					MessageBox.Show("No rows were updated. Please check the data.", "Update Result");
-					//System.Diagnostics.Debug.WriteLine("No rows updated");
 					return;
 				}
 
@@ -440,23 +440,20 @@ namespace DataBase
 				using var verifyCmd = new SqlCommand(verifyQuery, conn);
 				verifyCmd.Parameters.AddWithValue("@PrimaryKeyValue", pkValue);
 				var updatedValue = await verifyCmd.ExecuteScalarAsync();
-				//System.Diagnostics.Debug.WriteLine($"Updated value in database: {updatedValue}");
 
 				await ExecuteScriptAsync($"SELECT * FROM [{CurrentTableName}]");
-				//System.Diagnostics.Debug.WriteLine("Grid refreshed");
 			}
 			catch (Exception ex)
 			{
 				MessageBox.Show($"Failed to update database: {ex.Message}\nStack Trace: {ex.StackTrace}", "Error");
-				//System.Diagnostics.Debug.WriteLine($"Exception: {ex.Message}\nStack Trace: {ex.StackTrace}");
 			}
 		}
 
+		// Inserts a new row into the database
 		private async Task InsertNewRow(DataRowView row)
 		{
 			try
 			{
-				//System.Diagnostics.Debug.WriteLine("InsertNewRow method started");
 				string[] columns = GetTableColumns(CurrentTableName);
 				string primaryKeyColumn = GetPrimaryKeyColumn(CurrentTableName);
 				var insertColumns = columns.Where(c => c != primaryKeyColumn).ToList();
@@ -498,34 +495,26 @@ namespace DataBase
 						object formattedValue = FormatValueForColumn(value.ToString(), columnType);
 						cmd.Parameters.AddWithValue($"@p_{column}", formattedValue);
 					}
-					//System.Diagnostics.Debug.WriteLine($"Parameter @p_{column} = {value}");
 				}
 
-				//System.Diagnostics.Debug.WriteLine($"Executing INSERT query: {insertQuery}");
 				var newId = await cmd.ExecuteScalarAsync();
-				//System.Diagnostics.Debug.WriteLine($"Inserted row with ID: {newId}");
-
 				MessageBox.Show($"Inserted 1 row with ID {newId}", "Insert Result");
 
-
 				await ExecuteScriptAsync($"SELECT * FROM [{CurrentTableName}]");
-
 
 				if (row.Row.Table.Columns.Contains(primaryKeyColumn))
 				{
 					row.Row[primaryKeyColumn] = Convert.ToInt32(newId);
 					row.Row.AcceptChanges();
 				}
-
-				//System.Diagnostics.Debug.WriteLine("Grid refreshed and row updated with new ID");
 			}
 			catch (Exception ex)
 			{
-
-				//System.Diagnostics.Debug.WriteLine($"Exception in InsertNewRow: {ex.Message}\nStack Trace: {ex.StackTrace}");
+				// Handle silently as per original code
 			}
 		}
 
+		// Retrieves whether a column allows null values
 		private string GetColumnAllowsNulls(string tableName, string columnName)
 		{
 			try
@@ -533,10 +522,10 @@ namespace DataBase
 				using var conn = new SqlConnection(ConnStr);
 				conn.Open();
 				string query = $@"
-					SELECT IS_NULLABLE
-					FROM INFORMATION_SCHEMA.COLUMNS
-					WHERE TABLE_NAME = @TableName
-					AND COLUMN_NAME = @ColumnName";
+                    SELECT IS_NULLABLE
+                    FROM INFORMATION_SCHEMA.COLUMNS
+                    WHERE TABLE_NAME = @TableName
+                    AND COLUMN_NAME = @ColumnName";
 				using var cmd = new SqlCommand(query, conn);
 				cmd.Parameters.AddWithValue("@TableName", tableName);
 				cmd.Parameters.AddWithValue("@ColumnName", columnName);
@@ -551,6 +540,7 @@ namespace DataBase
 			}
 		}
 
+		// Retrieves the primary key column of a table
 		private string GetPrimaryKeyColumn(string tableName)
 		{
 			try
@@ -575,6 +565,7 @@ namespace DataBase
 			}
 		}
 
+		// Retrieves the data type of a column
 		private string GetColumnDataType(string tableName, string columnName)
 		{
 			try
@@ -600,6 +591,7 @@ namespace DataBase
 			}
 		}
 
+		// Formats a value based on column data type
 		private object FormatValueForColumn(string value, string dataType)
 		{
 			if (string.IsNullOrWhiteSpace(value))
@@ -634,6 +626,7 @@ namespace DataBase
 			}
 		}
 
+		// Event handler for Add Table button: Creates a new table
 		private async void AddTableButton_Click(object sender, RoutedEventArgs e)
 		{
 			if (string.IsNullOrWhiteSpace(ConnStr))
@@ -677,6 +670,7 @@ namespace DataBase
 			}
 		}
 
+		// Event handler for Delete Table button: Deletes the selected table
 		private async void DeleteTableButton_Click(object sender, RoutedEventArgs e)
 		{
 			if (string.IsNullOrWhiteSpace(ConnStr))
@@ -729,6 +723,7 @@ namespace DataBase
 			}
 		}
 
+		// Event handler for Add Column button: Adds a new column to the selected table
 		private async void AddColumnButton_Click(object sender, RoutedEventArgs e)
 		{
 			if (string.IsNullOrWhiteSpace(CurrentTableName))
@@ -783,6 +778,7 @@ namespace DataBase
 			}
 		}
 
+		// Event handler for Edit Column button: Renames a column
 		private async void EditColumnButton_Click(object sender, RoutedEventArgs e)
 		{
 			if (string.IsNullOrWhiteSpace(CurrentTableName))
@@ -847,6 +843,7 @@ namespace DataBase
 			}
 		}
 
+		// Event handler for Delete Column button: Deletes a column from the selected table
 		private async void DeleteColumnButton_Click(object sender, RoutedEventArgs e)
 		{
 			if (string.IsNullOrWhiteSpace(CurrentTableName))
@@ -904,6 +901,7 @@ namespace DataBase
 			}
 		}
 
+		// Retrieves column names for a given table
 		private string[] GetTableColumns(string tableName)
 		{
 			var columns = new List<string>();
@@ -922,11 +920,12 @@ namespace DataBase
 			}
 			catch (Exception)
 			{
-				// Handle silently or log if needed
+				// Handle silently as per original code
 			}
 			return columns.ToArray();
 		}
 
+		// Checks if a column is a primary key
 		private bool IsPrimaryKey(string tableName, string columnName)
 		{
 			try
@@ -951,16 +950,19 @@ namespace DataBase
 			}
 		}
 
+		// Event handler for Close button: Closes the window
 		private void CloseButton_Click(object sender, RoutedEventArgs e)
 		{
 			Close();
 		}
 
+		// Event handler for Minimize button: Minimizes the window
 		private void MinimizeButton_Click(object sender, RoutedEventArgs e)
 		{
 			Window.GetWindow(this).WindowState = WindowState.Minimized;
 		}
 
+		// Event handler for button mouse down: Applies scale animation
 		private void Button_PreviewMouseDown(object sender, MouseButtonEventArgs e)
 		{
 			if (sender is Button button && button.RenderTransform is ScaleTransform scaleTransform)
@@ -977,6 +979,7 @@ namespace DataBase
 			}
 		}
 
+		// Event handler for button mouse up: Reverts scale animation
 		private void Button_PreviewMouseUp(object sender, MouseButtonEventArgs e)
 		{
 			if (sender is Button button && button.RenderTransform is ScaleTransform scaleTransform)
@@ -993,8 +996,10 @@ namespace DataBase
 			}
 		}
 
+		// Event handler for Normalize button: Toggles window state and sets size
 		private void NormalizeButton_Click(object sender, RoutedEventArgs e)
 		{
+			/*
 			var mainWindow = Application.Current.MainWindow;
 
 			if (mainWindow.WindowState == WindowState.Maximized)
@@ -1007,8 +1012,10 @@ namespace DataBase
 			}
 			mainWindow.Height = 450;
 			mainWindow.Width = 1200;
+			*/ //Have problem with grid, temporarily disabled
 		}
 
+		// Event handler for Filter button: Applies filter to table data
 		private async void FilterButton_Click(object sender, RoutedEventArgs e)
 		{
 			if (string.IsNullOrWhiteSpace(ConnStr))
@@ -1066,6 +1073,8 @@ namespace DataBase
 				MessageBox.Show($"Failed to filter data: {ex.Message}", "Error");
 			}
 		}
+
+		// Event handler for FilterTextBox focus: Clears placeholder text
 		private void FilterTextBox_GotFocus(object sender, RoutedEventArgs e)
 		{
 			if (FilterTextBox.Text == "Enter document name")
@@ -1075,6 +1084,7 @@ namespace DataBase
 			}
 		}
 
+		// Event handler for FilterTextBox lost focus: Restores placeholder text
 		private void FilterTextBox_LostFocus(object sender, RoutedEventArgs e)
 		{
 			if (string.IsNullOrWhiteSpace(FilterTextBox.Text))
@@ -1084,6 +1094,7 @@ namespace DataBase
 			}
 		}
 
+		// Event handler for Save button: Saves filtered data as a PDF report
 		private async void SaveButton_Click(object sender, RoutedEventArgs e)
 		{
 			if (ContentGrid.ItemsSource == null || ContentGrid.Items.Count == 0)
@@ -1094,60 +1105,25 @@ namespace DataBase
 
 			try
 			{
-				// Отримуємо дані з ContentGrid
 				var dataView = ContentGrid.ItemsSource as DataView;
-				if (dataView == null || dataView.Table == null)
+				if (dataView?.Table == null)
 				{
 					MessageBox.Show("Failed to retrieve data to save.", "Error");
 					return;
 				}
 
 				DataTable dataTable = dataView.Table;
-
-				// Визначаємо шлях до папки Docs/Filters
 				string baseDir = AppDomain.CurrentDomain.BaseDirectory;
 				string docsFolder = System.IO.Path.Combine(baseDir, "Docs", "Filters");
-
-				// Створюємо папку, якщо вона не існує
 				Directory.CreateDirectory(docsFolder);
 
-				// Збереження у CSV
-				StringBuilder csvContent = new StringBuilder();
-				csvContent.AppendLine($"Report: Data Export from {CurrentTableName}");
-				csvContent.AppendLine($"Generated on: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-				string filterValue = FilterTextBox.Text.Trim();
-				string selectedColumn = FilterColumnComboBox.SelectedItem?.ToString();
-				if (!string.IsNullOrWhiteSpace(filterValue) && filterValue != "Enter value to filter" && !string.IsNullOrWhiteSpace(selectedColumn))
-				{
-					csvContent.AppendLine($"Filter Parameters: {selectedColumn} contains \"{filterValue}\"");
-				}
-				else
-				{
-					csvContent.AppendLine("Filter Parameters: None");
-				}
-				csvContent.AppendLine();
+				using var conn = new SqlConnection(ConnStr);
+				await conn.OpenAsync();
 
-				IEnumerable<string> columnNames = dataTable.Columns.Cast<DataColumn>().Select(column => $"\"{column.ColumnName}\"");
-				csvContent.AppendLine(string.Join(",", columnNames));
-				foreach (DataRow row in dataTable.Rows)
-				{
-					IEnumerable<string> fields = row.ItemArray.Select(field =>
-					{
-						string escapedField = field?.ToString() ?? "";
-						escapedField = $"\"{escapedField.Replace("\"", "\"\"")}\"";
-						return escapedField;
-					});
-					csvContent.AppendLine(string.Join(",", fields));
-				}
-
-				// Insert into Document table and retrieve the new document_id
 				string insertDocumentQuery = @"
             INSERT INTO dbo.Document (Document_type, Employee_id, Document_date, Description)
             OUTPUT INSERTED.Document_id
             VALUES (@DocumentType, @EmployeeId, @DocumentDate, @Description)";
-
-				using var conn = new SqlConnection(ConnStr);
-				await conn.OpenAsync();
 
 				using var docCmd = new SqlCommand(insertDocumentQuery, conn);
 				docCmd.Parameters.AddWithValue("@EmployeeId", 0);
@@ -1156,11 +1132,11 @@ namespace DataBase
 				docCmd.Parameters.AddWithValue("@Description", "generated automatically");
 
 				int documentId = (int)await docCmd.ExecuteScalarAsync();
-				string csvFilePath = System.IO.Path.Combine(docsFolder, $"_report_{documentId}.csv");
+				string pdfFilePath = System.IO.Path.Combine(docsFolder, $"_report_{documentId}.pdf");
 
-				File.WriteAllText(csvFilePath, csvContent.ToString(), Encoding.UTF8);
+				GeneratePdfFromDataTable(dataTable, pdfFilePath);
 
-				MessageBox.Show($"Report saved successfully to {csvFilePath}", "Success");
+				MessageBox.Show($"Report saved successfully to {pdfFilePath}", "Success");
 			}
 			catch (Exception ex)
 			{
@@ -1168,6 +1144,69 @@ namespace DataBase
 			}
 		}
 
+		// Generates a PDF from a DataTable
+		private void GeneratePdfFromDataTable(DataTable table, string filePath)
+		{
+			PdfDocument document = new PdfDocument();
+			PdfPage page = document.AddPage();
+			XGraphics gfx = XGraphics.FromPdfPage(page);
+			XFont font = new XFont("Verdana", 10, XFontStyle.Regular);
+			double y = 20;
+
+			gfx.DrawString("Report Export", new XFont("Verdana", 14, XFontStyle.Bold), XBrushes.Black, new XPoint(20, y));
+			y += 25;
+
+			string header = string.Join(" | ", table.Columns.Cast<DataColumn>().Select(c => c.ColumnName));
+			gfx.DrawString(header, font, XBrushes.DarkBlue, new XPoint(20, y));
+			y += 20;
+
+			foreach (DataRow row in table.Rows)
+			{
+				string line = string.Join(" | ", row.ItemArray.Select(field => field?.ToString() ?? ""));
+				if (y > page.Height - 40)
+				{
+					page = document.AddPage();
+					gfx = XGraphics.FromPdfPage(page);
+					y = 20;
+				}
+				gfx.DrawString(line, font, XBrushes.Black, new XPoint(20, y));
+				y += 15;
+			}
+
+			document.Save(filePath);
+		}
+
+		// Generates a simple PDF from text content
+		private void GenerateSimplePdf(string content, string filePath)
+		{
+			var document = new PdfDocument();
+			var page = document.AddPage();
+			var gfx = XGraphics.FromPdfPage(page);
+			var font = new XFont("Verdana", 10, XFontStyle.Regular);
+
+			double margin = 40;
+			double y = margin;
+			double lineHeight = 15;
+
+			var lines = content.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+
+			foreach (var line in lines)
+			{
+				if (y + lineHeight > page.Height - margin)
+				{
+					page = document.AddPage();
+					gfx = XGraphics.FromPdfPage(page);
+					y = margin;
+				}
+
+				gfx.DrawString(line, font, XBrushes.Black, new XRect(margin, y, page.Width - 2 * margin, lineHeight), XStringFormats.TopLeft);
+				y += lineHeight;
+			}
+
+			document.Save(filePath);
+		}
+
+		// Event handler for double-click on DocumentLList: Loads document data
 		private async void Document_List_MouseDoubleClick(object sender, MouseButtonEventArgs e)
 		{
 			CurrentTableName = "Document";
@@ -1176,7 +1215,7 @@ namespace DataBase
 
 			switch (documentType)
 			{
-				case "Employement":
+				case "Employment":
 					query = $"SELECT * FROM dbo.Document WHERE Document_type = 'Employement'";
 					Query.Text = query;
 					break;
@@ -1204,10 +1243,10 @@ namespace DataBase
 			}
 		}
 
+		// Opens a document file using the default application
 		private void OpenDocument(string docsFolder, string filename)
 		{
 			string fullPath = System.IO.Path.Combine(docsFolder, filename);
-
 
 			if (!File.Exists(fullPath))
 			{
@@ -1225,20 +1264,19 @@ namespace DataBase
 			Process.Start(startInfo);
 		}
 
+		// Event handler for cell double-click: Opens document if table is Document
 		private async void CellDoubleClick(object sender, MouseButtonEventArgs e)
 		{
 			if (CurrentTableName == "Document")
 			{
 				try
 				{
-					// Ensure the sender is a DataGrid
 					if (!(sender is DataGrid dataGrid))
 					{
 						MessageBox.Show("Invalid sender: not a DataGrid.");
 						return;
 					}
 
-					// Get the original source as a DependencyObject
 					var originalSource = e.OriginalSource as DependencyObject;
 					if (originalSource == null)
 					{
@@ -1246,24 +1284,16 @@ namespace DataBase
 						return;
 					}
 
-					// Try to find the DataGridCell
 					var cell = FindVisualParent<DataGridCell>(originalSource);
 					if (cell == null)
 					{
-						// Debug: Show what was clicked
-						string clickedType = originalSource.GetType().Name;
-
-
-						// Alternative: Try hit-testing to find the cell
 						cell = GetCellFromPoint(dataGrid, e.GetPosition(dataGrid));
 						if (cell == null)
 						{
-
 							return;
 						}
 					}
 
-					// Get the DataGridRow from the cell
 					var row = FindVisualParent<DataGridRow>(cell);
 					if (row == null)
 					{
@@ -1271,7 +1301,6 @@ namespace DataBase
 						return;
 					}
 
-					// Get the data item associated with the row
 					var dataItem = row.Item;
 					if (dataItem == null || dataItem == CollectionView.NewItemPlaceholder)
 					{
@@ -1279,32 +1308,23 @@ namespace DataBase
 						return;
 					}
 
-					// Cast to DataRowView and access the column directly
 					if (!(dataItem is DataRowView dataRowView))
 					{
 						MessageBox.Show("Data item is not a DataRowView.");
 						return;
 					}
 
-					// Access the Documentid column by name
 					object idValue, personId;
 					try
 					{
 						idValue = dataRowView["Document_id"];
 						personId = dataRowView["Employee_id"];
-
 					}
 					catch (Exception ex)
 					{
 						MessageBox.Show($"Error accessing Documentid: {ex.Message}");
 						return;
 					}
-
-					//MessageBox.Show($"Clicked ID: {idValue?.ToString() ?? "null"}");
-
-
-					string docsFolder;
-					string baseDir = AppDomain.CurrentDomain.BaseDirectory;
 
 					string documentType = DocumentLList.SelectedItem?.ToString();
 					if (string.IsNullOrEmpty(documentType))
@@ -1319,13 +1339,13 @@ namespace DataBase
 						return;
 					}
 
-					string filename = $"{personId}.txt";
-
-					//MessageBox.Show($"Opening document: {filename}");
+					string filename = $"{personId}.pdf";
+					string docsFolder;
+					string baseDir = AppDomain.CurrentDomain.BaseDirectory;
 
 					switch (documentType)
 					{
-						case "Employement":
+						case "Employment":
 							docsFolder = System.IO.Path.Combine(baseDir, "Docs", "Hired");
 							OpenDocument(docsFolder, filename);
 							return;
@@ -1335,14 +1355,13 @@ namespace DataBase
 							return;
 						case "Filters":
 							docsFolder = System.IO.Path.Combine(baseDir, "Docs", "Filters");
-							filename = $"_report_{documentId}.csv";
+							filename = $"_report_{documentId}.pdf";
 							OpenDocument(docsFolder, filename);
 							return;
 						default:
 							MessageBox.Show("Unknown document type selected.", "Error");
 							return;
 					}
-
 				}
 				catch (Exception ex)
 				{
@@ -1351,9 +1370,7 @@ namespace DataBase
 			}
 		}
 
-
-
-		// Helper method to find a visual parent of type T
+		// Helper method to find a visual parent of specified type
 		private T FindVisualParent<T>(DependencyObject child) where T : DependencyObject
 		{
 			while (child != null && !(child is T))
@@ -1363,18 +1380,17 @@ namespace DataBase
 			return child as T;
 		}
 
-		// Helper method to find a DataGridCell using hit-testing
+		// Helper method to find DataGridCell using hit-testing
 		private DataGridCell GetCellFromPoint(DataGrid dataGrid, Point clickPosition)
 		{
-			// Perform hit-test to find the visual element at the click position
 			var hitTestResult = VisualTreeHelper.HitTest(dataGrid, clickPosition);
 			if (hitTestResult?.VisualHit == null)
 				return null;
 
-			// Traverse up to find the DataGridCell
 			return FindVisualParent<DataGridCell>(hitTestResult.VisualHit);
 		}
 
+		// Event handler for Hire button: Adds a new employee and generates contract
 		private async void HireButton_Click(object sender, RoutedEventArgs e)
 		{
 			if (string.IsNullOrWhiteSpace(ConnStr))
@@ -1498,9 +1514,9 @@ namespace DataBase
 
 				// Insert into Employee table
 				string insertEmployeeQuery = @"
-					INSERT INTO Employee (Person_id, Department_id, Position_id, Hire_date, Academic_degree_id, Academic_title_id)
-					OUTPUT INSERTED.Employee_id
-					VALUES (@PersonId, @DepartmentId, @PositionId, @HireDate, @AcademicDegreeId, @AcademicTitleId)";
+                    INSERT INTO Employee (Person_id, Department_id, Position_id, Hire_date, Academic_degree_id, Academic_title_id)
+                    OUTPUT INSERTED.Employee_id
+                    VALUES (@PersonId, @DepartmentId, @PositionId, @HireDate, @AcademicDegreeId, @AcademicTitleId)";
 
 				using var employeeCmd = new SqlCommand(insertEmployeeQuery, conn);
 				employeeCmd.Parameters.AddWithValue("@PersonId", personId);
@@ -1509,7 +1525,6 @@ namespace DataBase
 				employeeCmd.Parameters.AddWithValue("@HireDate", parsedHireDate);
 				employeeCmd.Parameters.AddWithValue("@AcademicDegreeId", 1);
 				employeeCmd.Parameters.AddWithValue("@AcademicTitleId", 1);
-
 
 				var employeeId = await employeeCmd.ExecuteScalarAsync();
 				if (employeeId == null)
@@ -1520,8 +1535,8 @@ namespace DataBase
 
 				// Insert into Document table
 				string insertDocumentQuery = @"
-					INSERT INTO dbo.Document (Document_type, Employee_id, Document_date, Description)
-					VALUES ('Employement', @EmployeeId, @DocumentDate, @Description)";
+                    INSERT INTO dbo.Document (Document_type, Employee_id, Document_date, Description)
+                    VALUES ('Employement', @EmployeeId, @DocumentDate, @Description)";
 
 				using var docCmd = new SqlCommand(insertDocumentQuery, conn);
 				docCmd.Parameters.AddWithValue("@EmployeeId", employeeId);
@@ -1531,11 +1546,11 @@ namespace DataBase
 				await docCmd.ExecuteNonQueryAsync();
 
 				// Generate and save the contract
-				string employerName = "ScientificSystem Ltd"; // Replace with actual employer name or prompt
-				string employerAddress = "123 Business Park, Scotland"; // Replace with actual address or prompt
-				string registrationNumber = "SC123456"; // Replace with actual registration number
+				string employerName = "ScientificSystem Ltd";
+				string employerAddress = "123 Business Park, Scotland";
+				string registrationNumber = "SC123456";
 				string docsFolder = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Docs", "Hired");
-				string filename = $"{employeeId}.txt";
+				string filename = $"{employeeId}.pdf";
 
 				try
 				{
@@ -1555,10 +1570,9 @@ namespace DataBase
 						adress
 					);
 
-					File.WriteAllText(System.IO.Path.Combine(docsFolder, filename), contractContent, Encoding.UTF8);
+					GenerateSimplePdf(contractContent, System.IO.Path.Combine(docsFolder, filename));
 					MessageBox.Show($"Person and employee added successfully. Person ID: {personId}, Employee ID: {employeeId}. Contract saved to {filename}.", "Success");
 
-					// Refresh the Person or Employee table if currently selected
 					if (CurrentTableName == "Person")
 					{
 						await ExecuteScriptAsync("SELECT * FROM Person");
@@ -1568,7 +1582,6 @@ namespace DataBase
 						await ExecuteScriptAsync("SELECT * FROM Employee");
 					}
 
-					// Open the generated document
 					OpenDocument(docsFolder, filename);
 				}
 				catch (Exception ex)
@@ -1582,8 +1595,7 @@ namespace DataBase
 			}
 		}
 
-		#region generate employee contract
-
+		// Generates an employee contract text
 		private string GenerateEmployeeContract(
 			string employerName,
 			string employeeName,
@@ -1722,145 +1734,97 @@ namespace DataBase
 
 			return contract.ToString();
 		}
-		#endregion
 
+		// Event handler for Dismiss button: Dismisses an employee and generates dismissal letter
 		private async void DismissButton_Click(object sender, RoutedEventArgs e)
 		{
+			if (ContentGrid.SelectedItem == null)
+			{
+				MessageBox.Show("Please select an employee to dismiss.", "Warning");
+				return;
+			}
+
 			if (string.IsNullOrWhiteSpace(ConnStr))
 			{
 				MessageBox.Show("Please connect to a database first.", "Connection Error");
 				return;
 			}
 
+			DataRowView row = ContentGrid.SelectedItem as DataRowView;
+			if (row == null || !int.TryParse(row["Employee_id"].ToString(), out int employeeId))
+			{
+				MessageBox.Show("Invalid selection.", "Error");
+				return;
+			}
+
 			try
 			{
-				string employeeIdInput = Interaction.InputBox("Enter Employee ID to dismiss:", "Dismiss Employee", "");
-				if (!int.TryParse(employeeIdInput, out int employeeId) || employeeId <= 0)
-				{
-					MessageBox.Show("Invalid Employee ID. Please enter a valid number.", "Error");
-					return;
-				}
-
 				using var conn = new SqlConnection(ConnStr);
 				await conn.OpenAsync();
 
-				string personQuery = @"
-            SELECT p.First_name, p.Last_name, p.Adress, e.Hire_date, e.Person_id 
-            FROM Employee e 
-            JOIN Person p ON e.Person_id = p.Person_id 
-            WHERE e.Employee_id = @EmployeeId";
+				// Retrieve employee name and address
+				string nameQuery = "SELECT p.First_name + ' ' + p.Last_name, p.Adress FROM Person p JOIN Employee e ON p.Person_id = e.Person_id WHERE e.Employee_id = @EmployeeId";
+				using var nameCmd = new SqlCommand(nameQuery, conn);
+				nameCmd.Parameters.AddWithValue("@EmployeeId", employeeId);
 
-				using var personCmd = new SqlCommand(personQuery, conn);
-				personCmd.Parameters.AddWithValue("@EmployeeId", employeeId);
+				string fullName = "Employee";
+				string address = "Address";
 
-				using var reader = await personCmd.ExecuteReaderAsync();
-				if (!reader.HasRows)
+				using (var reader = await nameCmd.ExecuteReaderAsync())
 				{
-					MessageBox.Show("No employee found with the provided ID.", "Error");
-					return;
+					if (await reader.ReadAsync())
+					{
+						fullName = reader.GetString(0);
+						address = reader.GetString(1);
+					}
 				}
 
-				string firstName = "", lastName = "", employeeAddress = "";
-				DateTime hireDate = DateTime.Now;
-				int personId = 0;
+				// Delete employee
+				string deleteQuery = "DELETE FROM Employee WHERE Employee_id = @EmployeeId";
+				using var deleteCmd = new SqlCommand(deleteQuery, conn);
+				deleteCmd.Parameters.AddWithValue("@EmployeeId", employeeId);
+				await deleteCmd.ExecuteNonQueryAsync();
 
-				if (await reader.ReadAsync())
-				{
-					firstName = reader.GetString(0);
-					lastName = reader.GetString(1);
-					employeeAddress = reader.GetString(2);
-					hireDate = reader.GetDateTime(3);
-					personId = reader.GetInt32(4);
-				}
-				reader.Close();
-
+				// Insert into Document table
 				string insertDocumentQuery = @"
             INSERT INTO dbo.Document (Document_type, Employee_id, Document_date, Description)
-            OUTPUT INSERTED.Document_id
-            VALUES (@DocumentType, @EmployeeId, @DocumentDate, @Description)";
-
+            VALUES ('Dismissal', @EmployeeId, @DocumentDate, @Description)";
 				using var docCmd = new SqlCommand(insertDocumentQuery, conn);
-				docCmd.Parameters.AddWithValue("@DocumentType", "Dismissial");
 				docCmd.Parameters.AddWithValue("@EmployeeId", employeeId);
 				docCmd.Parameters.AddWithValue("@DocumentDate", DateTime.Now);
 				docCmd.Parameters.AddWithValue("@Description", "generated automatically");
+				await docCmd.ExecuteNonQueryAsync();
 
-				int documentId = (int)await docCmd.ExecuteScalarAsync();
+				// Generate dismissal letter
+				string dismissalText = $"Dismissal Letter\n\nTo: {fullName}\nAddress: {address}\n\n" +
+					$"We regret to inform you that your employment with our company has been terminated as of {DateTime.Now:yyyy-MM-dd}.\n" +
+					$"Please return any company property in your possession and settle outstanding matters.\n\n" +
+					$"Sincerely,\nHR Department";
 
-				string employerName = "ScientificSystem Ltd";
-				string employerAddress = "123 Business Park, Scotland";
-				string registrationNumber = "SC123456";
+				// Save dismissal letter as PDF
 				string docsFolder = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Docs", "Fired");
-				string filename = $"{employeeId}.txt";
+				if (!Directory.Exists(docsFolder))
+					Directory.CreateDirectory(docsFolder);
 
-				try
-				{
-					if (!Directory.Exists(docsFolder))
-					{
-						Directory.CreateDirectory(docsFolder);
-					}
+				string filename = $"{employeeId}.pdf";
+				string pdfPath = System.IO.Path.Combine(docsFolder, filename);
 
-					string dismissalContent = GenerateDismissalLetter(
-						employerName,
-						$"{firstName} {lastName}",
-						employerAddress,
-						registrationNumber,
-						hireDate,
-						DateTime.Now,
-						employeeAddress
-					);
+				GenerateSimplePdf(dismissalText, pdfPath);
 
-					File.WriteAllText(System.IO.Path.Combine(docsFolder, filename), dismissalContent, Encoding.UTF8);
+				MessageBox.Show("Employee dismissed and document generated.", "Success");
 
-					using var transaction = conn.BeginTransaction();
-					try
-					{
-						string deleteEmployeeQuery = "DELETE FROM Employee WHERE Employee_id = @EmployeeId";
-						using var deleteEmpCmd = new SqlCommand(deleteEmployeeQuery, conn, transaction);
-						deleteEmpCmd.Parameters.AddWithValue("@EmployeeId", employeeId);
-						int empRows = await deleteEmpCmd.ExecuteNonQueryAsync();
+				if (CurrentTableName == "Employee")
+					await ExecuteScriptAsync("SELECT * FROM Employee");
 
-						string deletePersonQuery = "DELETE FROM Person WHERE Person_id = @PersonId";
-						using var deletePersonCmd = new SqlCommand(deletePersonQuery, conn, transaction);
-						deletePersonCmd.Parameters.AddWithValue("@PersonId", personId);
-						int personRows = await deletePersonCmd.ExecuteNonQueryAsync();
-
-						transaction.Commit();
-						MessageBox.Show(
-							$"Employee ID {employeeId} dismissed successfully. {empRows} employee and {personRows} person record(s) deleted. Dismissal letter saved to {filename}.",
-							"Success"
-						);
-					}
-					catch (Exception ex)
-					{
-						transaction.Rollback();
-						MessageBox.Show($"Failed to delete records: {ex.Message}", "Error");
-						return;
-					}
-
-					if (CurrentTableName == "Person")
-					{
-						await ExecuteScriptAsync("SELECT * FROM Person");
-					}
-					else if (CurrentTableName == "Employee")
-					{
-						await ExecuteScriptAsync("SELECT * FROM Employee");
-					}
-
-					OpenDocument(docsFolder, filename);
-				}
-				catch (Exception ex)
-				{
-					MessageBox.Show($"Failed to save dismissal letter: {ex.Message}", "Error");
-					return;
-				}
+				OpenDocument(docsFolder, filename);
 			}
 			catch (Exception ex)
 			{
-				MessageBox.Show($"Failed to process dismissal: {ex.Message}", "Error");
+				MessageBox.Show($"Error while dismissing: {ex.Message}", "Error");
 			}
 		}
 
+		// Generates a dismissal letter text
 		private string GenerateDismissalLetter(
 			string employerName,
 			string employeeName,
